@@ -88,6 +88,9 @@ if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
 fi
 
 # ---- 前端：前台启动 ----
+# 注意：这里不能用 exec —— exec 会用 npm 进程替换当前 bash，导致上面注册的
+# trap cleanup EXIT INT TERM 全部失效（Ctrl+C 不清理后端 / 前端崩溃后端成孤儿）。
+# 让 bash 继续存活，npm 退出后才能走到 EXIT trap 执行 cleanup。
 echo "[dev.sh] 启动前端 (vite)..."
 cd "$ROOT_DIR/frontend"
-exec npm run dev
+npm run dev
