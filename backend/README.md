@@ -18,7 +18,8 @@ backend/
     ├── main.py         # FastAPI 入口：CORS、请求体上限、/healthz、启动钩子
     ├── config.py       # pydantic-settings 读 .env，启动期校验必填字段
     ├── api/            # 业务路由（T7 填充）
-    ├── services/       # ModelVerse / UFile / 编排器 / 串行锁（T4/T5/T6 填充）
+    ├── services/       # ModelVerse / UFile / 编排器 / 串行锁
+    │   └── modelverse.py  # T4：kling-v3 提交 + 轮询客户端（已就绪）
     └── storage/        # SQLite 初始化、tasks 表 CRUD、启动孤儿清理（T3 落地）
 ```
 
@@ -138,9 +139,79 @@ INFO app.startup: 启动孤儿清理：已将 0 条 pending/running 旧任务置
 数据库文件路径由 `Settings.TASKS_DB_PATH` 决定，默认 `backend/tasks.db`；
 相对路径锚定到项目根。`*.db` 已被根 `.gitignore` 屏蔽，不会进版本控制。
 
+## ModelVerse 客户端 `app/services/modelverse.py`
+
+封装 UCloud 星图 (UModelVerse) `kling-v3` 视频生成接口，供 T6 的后台编排器调用。
+
+### 端点与鉴权
+
+| 用途 | 方法 + 路径 | 备注 |
+|---|---|---|
+| 提交 | `POST https://api.modelverse.cn/v1/tasks/submit` | 返回 `output.task_id` |
+| 轮询 | `GET https://api.modelverse.cn/v1/tasks/status?task_id=...` | 返回 `output.task_status` 等 |
+
+- Header：`Authorization: Bearer <MODELVERSE_API_KEY>`
+- **单次 HTTP 超时 30 秒**（提交 / 轮询共用），匹配 DESIGN「非功能性约束」
+
+### 默认生成参数（模块级常量，不暴露给前端）
+
+| 参数 | 取值 | 备注 |
+|---|---|---|
+| `mode` | `std` | 720P |
+| `aspect_ratio` | `16:9` | 桌面浏览友好 |
+| `duration` | `5` 秒 | 模型支持 3~15 |
+| `sound` | `off` | MVP 无音频 |
+
+文生 / 图生同一 model id `kling-v3`，靠 `parameters.image` 是否存在自动切换。
+图生时传入的 base64 字符串必须**不带** `data:image/...;base64,` 前缀。
+
+### 公开 API
+
+- `async submit_kling_task(prompt: str, image_base64: str | None) -> str`
+  - 返回 ModelVerse 任务 ID
+- `async query_kling_task(task_id: str) -> TaskStatus`
+  - 归一化内部状态：`pending` / `running` / `success`
+  - `success` 时 `video_url` 为可直接 GET 的临时 URL
+- 类型 `TaskStatus`：`{"status": ..., "video_url": str | None, "error": None}`
+- 自定义异常 `ModelVerseError`
+
+### 状态与异常归一化（重要）
+
+| 上游 `task_status` | 内部表现 |
+|---|---|
+| `Pending` | 返回 `status="pending"` |
+| `Running` | 返回 `status="running"` |
+| `Success` | 返回 `status="success"` + `video_url=urls[0]` |
+| `Failure` | **抛出** `ModelVerseError(error_message)` |
+
+下列三类**统一抛 `ModelVerseError`**，由 T6 的轮询循环决定是否计入失败（区分"瞬时
+网络抖动"与"任务真失败"靠 message 文本，而不是返回值上的 `status="failure"`）：
+
+1. 网络异常（`httpx.HTTPError`）
+2. HTTP 4xx / 5xx
+3. 响应缺关键字段（`task_id` 缺失、`Success` 无 `urls`、未知 `task_status` 等）
+4. 上游 `task_status == "Failure"`（message 为 `task failure: <error_message>`）
+
+异常 message 限制在 200 字符以内，避免上游 HTML 错误页污染日志。
+**绝不**在客户端层把网络错误转译成 `status="failure"` 返回——上层无法区分时
+会把临时抖动误判为任务永久失败。
+
+### CLI 烟雾入口
+
+配齐 `.env` 后从 `backend/` 目录执行：
+
+```bash
+python -m app.services.modelverse "A cinematic shot of a futuristic city"
+```
+
+将提交一次文生任务并每 10 秒轮询一次，直到 `success` / 任意 `ModelVerseError`
+（包括真失败与网络异常）或 5 分钟硬超时。日志只打印 `task_id` 与状态，
+不打印 prompt 全文、不打印 API Key。退出码：0=成功，1=失败/超时，2=参数错误。
+
+环境变量缺失时 `app.config` 在 import 阶段即抛 `RuntimeError`，不会进入轮询。
+
 ## 后续任务衔接
 
-- T4：在 `app/services/modelverse.py` 落 ModelVerse 客户端
 - T5：在 `app/services/ufile.py` 落 UFile 客户端
 - T6：在 `app/services/orchestrator.py` 与 `app/services/lock.py` 落后台编排与串行锁
 - T7：在 `app/api/tasks.py` 落 `/api/tasks` 系列路由并挂载到 `main.py`
