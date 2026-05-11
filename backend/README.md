@@ -12,6 +12,7 @@
 ```
 backend/
 ├── README.md           # 本文档
+├── CORS.md             # UFile bucket CORS 最小配置（视频播放必需，T5 产物）
 ├── pyproject.toml      # 依赖与项目元数据
 └── app/
     ├── __init__.py
@@ -19,7 +20,8 @@ backend/
     ├── config.py       # pydantic-settings 读 .env，启动期校验必填字段
     ├── api/            # 业务路由（T7 填充）
     ├── services/       # ModelVerse / UFile / 编排器 / 串行锁
-    │   └── modelverse.py  # T4：kling-v3 提交 + 轮询客户端（已就绪）
+    │   ├── modelverse.py  # T4：kling-v3 提交 + 轮询客户端
+    │   └── ufile.py    # T5：UFile 客户端（流式上传 / 预签名 URL / 删除）
     └── storage/        # SQLite 初始化、tasks 表 CRUD、启动孤儿清理（T3 落地）
 ```
 
@@ -210,9 +212,47 @@ python -m app.services.modelverse "A cinematic shot of a futuristic city"
 
 环境变量缺失时 `app.config` 在 import 阶段即抛 `RuntimeError`，不会进入轮询。
 
+## UFile 客户端 `app/services/ufile.py`
+
+封装 UCloud UFile（US3）对象存储，供 T6 编排器在任务成功时把 ModelVerse 临时
+视频转存为可长期播放的私有对象，并签发预签名 URL。底层用官方 `ufile` Python
+SDK（不是 boto3）。
+
+### 公开 API
+
+| 函数 | 行为 |
+|---|---|
+| `upload_video_from_url(source_url, object_key)` | `requests.get(stream=True, timeout=300)` 拉视频 → `putstream` 直传，`Content-Type: video/mp4` |
+| `get_play_url(object_key, expires_seconds=3600)` | 返回 UFile 私有 bucket 的预签名 GET URL（带 `Expires` / `Signature`） |
+| `delete_object(object_key)` | 删除对象；HTTP 404（对象不存在）视为成功 |
+
+所有失败统一抛 `UFileError`，message 形如 `UFile <operation> failed for
+object_key='...': <detail>`。
+
+### 关键实现约束
+
+1. **`Content-Type: video/mp4` 必须用 `mime_type=` 参数传**：SDK 的 `putstream`
+   内部会用 `header['Content-Type'] = mime_type` 覆写任何外部传入的 `Content-Type`
+   头，且 `mime_type` 默认 `application/octet-stream`。本模块显式 `mime_type=
+   "video/mp4"`，否则浏览器 `<video>` 可能识别失败。
+2. **失败重试 1 次**：`requests.RequestException` 与 UFile SDK 抛错 / 软失败
+   （`ResponseInfo.ok() == False`）都计入失败；第一次失败 sleep 1s 后重试一次，
+   仍失败抛 `UFileError`。整体请求 timeout 上限 300s（DESIGN「非功能性约束」）。
+3. **`config.set_default(...)` 全局可变状态**：`get_play_url` 内部要临时设置
+   `expires=expires_seconds`，全程用模块级 `threading.Lock` 串行化 set_default →
+   `private_download_url` 序列；同时**必须显式重传** `open_ssl=True`，否则
+   SDK 的 `open_ssl` 形参默认为 `False`（非 None），会被无条件重置回 HTTP。
+4. **`delete_object` 对 404 容忍**：用户连续点删除、或控制台已手动清过的情况
+   不应误抛错误；其它非 ok 状态（401/403/5xx 等）仍抛 `UFileError`。
+
+### CORS（视频播放必需）
+
+UFile bucket 必须配最小 CORS 规则，浏览器 `<video>` 才能跨域拉到预签名 URL
+的 Range 响应。详见 **[`backend/CORS.md`](./CORS.md)**——含开发期 / 生产期
+建议、字段含义、控制台等价配置、验证步骤与常见故障对照。
+
 ## 后续任务衔接
 
-- T5：在 `app/services/ufile.py` 落 UFile 客户端
 - T6：在 `app/services/orchestrator.py` 与 `app/services/lock.py` 落后台编排与串行锁
 - T7：在 `app/api/tasks.py` 落 `/api/tasks` 系列路由并挂载到 `main.py`
 
