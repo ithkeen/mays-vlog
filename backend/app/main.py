@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse
 
 # 触发启动期配置校验：缺失环境变量会立即抛出 RuntimeError
 from app.config import settings  # noqa: F401
+from app.api.tasks import router as tasks_router
 from app.storage import db as storage_db
 
 logger = logging.getLogger("app.startup")
@@ -97,3 +98,7 @@ async def limit_body_size(request: Request, call_next):
 @app.get("/healthz")
 async def healthz() -> dict[str, str]:
     return {"status": "ok"}
+
+
+# 业务路由：``/api/tasks`` 系列 6 个端点（T7）
+app.include_router(tasks_router, prefix="/api")
