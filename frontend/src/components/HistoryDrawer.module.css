@@ -1,3 +1,10 @@
+/*
+ * HistoryDrawer 局部样式。
+ *
+ * 视觉契约：minimal-refined / 浅色 / 冷色系 / 单一冷蓝 accent / 无衬线。
+ * 全部颜色、间距、字号、radius、shadow 走 :root tokens（见 src/index.css）。
+ */
+
 .drawer {
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
@@ -5,6 +12,8 @@
   flex-direction: column;
   padding: var(--space-5) var(--space-4);
   gap: var(--space-4);
+  overflow: hidden;
+  min-height: 0;
 }
 
 .header {
@@ -12,6 +21,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--space-2);
+  flex-shrink: 0;
 }
 
 .title {
@@ -28,7 +38,17 @@
   letter-spacing: 0.04em;
 }
 
-.body {
+.errorBanner {
+  font-size: var(--font-size-xs);
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-border);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.emptyBody {
   flex: 1;
   display: flex;
   align-items: center;
@@ -39,4 +59,82 @@
   border-radius: var(--radius-md);
   padding: var(--space-5);
   text-align: center;
+  line-height: var(--line-height-normal);
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.item {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  cursor: pointer;
+  color: var(--color-text);
+  font: inherit;
+  transition:
+    background var(--motion-fast) var(--easing-standard),
+    border-color var(--motion-fast) var(--easing-standard);
+}
+
+.item:hover {
+  background: var(--color-surface-muted);
+}
+
+.itemSelected,
+.itemSelected:hover {
+  background: var(--color-accent-soft);
+  border-color: var(--color-border-strong);
+}
+
+.itemTitle {
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-tight);
+  color: var(--color-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.itemMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-faint);
+  letter-spacing: 0.04em;
+}
+
+.imgBadge {
+  display: inline-block;
+  padding: 1px var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  letter-spacing: 0.08em;
+  background: var(--color-surface);
+}
+
+.itemTime {
+  color: var(--color-text-faint);
 }

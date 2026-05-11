@@ -16,8 +16,8 @@
 - T8：Vite + React + TS 基建 + 视觉契约 tokens + 占位双栏布局 + `/api` 代理（已完成）
 - T9：后端 API client + 轮询 hook（已完成，见 `src/api/`）
 - T10：IndexedDB history store（含首帧图 base64）（已完成，见 `src/storage/`）
-- T11：主界面（输入 / 提交 / 生成中 / 失败 / 成功 → 视频播放）（**本 task 已完成**，见 `src/components/`）
-- T12：左侧历史菜单的真实实现（后续 task）——T11 已预留 `HistoryDrawer.tsx` 占位组件，T12 只需在该文件内填充即可
+- T11：主界面（输入 / 提交 / 生成中 / 失败 / 成功 → 视频播放）（已完成，见 `src/components/`）
+- T12：历史菜单（列表 / 播放 / 下载 / 重命名 / 删除）（**本 task 已完成**，见 `src/components/HistoryDrawer.tsx` 与 `HistoryDetail.tsx`）
 
 ## 技术栈
 
@@ -42,7 +42,7 @@ frontend/
 ├── public/                 # 静态资源（当前为空，后续 task 按需放）
 └── src/
     ├── main.tsx            # React 入口
-    ├── App.tsx             # 应用根：双栏布局；右侧挂 SubmissionWorkspace（可 remount reset）
+    ├── App.tsx             # 应用根：双栏布局；右侧按 selectedId 在 SubmissionWorkspace ↔ HistoryDetail 间切换
     ├── App.module.css      # App 局部样式（CSS Modules）
     ├── index.css           # 全局 reset + 设计 tokens（:root CSS variables）
     ├── vite-env.d.ts       # Vite + CSS Modules 类型声明
@@ -50,12 +50,13 @@ frontend/
     │   ├── client.ts
     │   ├── hooks.ts
     │   └── README.md
-    ├── components/         # UI 组件层（T11），见该目录 README
-    │   ├── PromptInput.tsx / .module.css
-    │   ├── ProgressPanel.tsx / .module.css
-    │   ├── VideoPlayer.tsx / .module.css
-    │   ├── SubmissionWorkspace.tsx / .module.css
-    │   ├── HistoryDrawer.tsx / .module.css   (T12 会替换该文件的占位实现)
+    ├── components/         # UI 组件层（T11 + T12），见该目录 README
+    │   ├── PromptInput.tsx / .module.css         (T11)
+    │   ├── ProgressPanel.tsx / .module.css       (T11)
+    │   ├── VideoPlayer.tsx / .module.css         (T11)
+    │   ├── SubmissionWorkspace.tsx / .module.css (T11)
+    │   ├── HistoryDrawer.tsx / .module.css       (T12 历史列表)
+    │   ├── HistoryDetail.tsx / .module.css       (T12 历史详情)
     │   └── README.md
     └── storage/            # IndexedDB 历史缓存（T10），见该目录 README
         ├── historyDb.ts
@@ -137,12 +138,16 @@ server: {
 
 **布局**：`--sidebar-width`
 
-## 双栏布局
+## 双栏布局与主区两态切换
 
-`App.tsx` 渲染两栏：
+`App.tsx`：
 
-- 左：`<HistoryDrawer />`，固定宽 `--sidebar-width`（280px）；T11 只放占位文案，T12 会替换为真实历史列表。
-- 右：`<main>` 下挂 `<SubmissionWorkspace />`，最大宽 760px 居中，承担 idle / submitting / running / success / failure 全部视图。
+- 左：`<HistoryDrawer>` 历史列表（T12），固定宽 `--sidebar-width`（280px）。
+- 右：`<main>` 主工作区，按父级 `selectedId` 状态二选一：
+  - `selectedId === null` → `<SubmissionWorkspace>`（输入 / 提交 / 生成中 / 成功视频，T11）
+  - `selectedId !== null` → `<HistoryDetail itemId={selectedId}>`（prompt 全文 / 视频 / 首帧图 / 下载 / 重命名 / 删除，T12）
+
+切换由抽屉列表点击触发；`HistoryDetail` 删除成功后通过 `onDeleted` 让父级清空 `selectedId` 切回输入页。父级 `refreshTick` 状态用于在 rename / delete / 新生成成功后强制抽屉再做一次 `listTasks → mergeFromBackend`，以后端为权威。
 
 「再生成一个」通过给 `SubmissionWorkspace` 自增 `key` 实现 remount-reset，不在 hook 层加专用 reset 方法。
 
