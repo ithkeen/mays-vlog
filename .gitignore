@@ -31,3 +31,7 @@ Thumbs.db
 
 # 日志
 *.log
+
+# scripts/dev.sh 运行时产生的本地 pid / 日志
+.dev-backend.pid
+.dev-backend.log
