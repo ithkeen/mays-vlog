@@ -11,6 +11,7 @@ __pycache__/
 # 构建产物
 dist/
 build/
+*.egg-info/
 
 # 本地数据库
 *.db

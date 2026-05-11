@@ -1,0 +1,22 @@
+[project]
+name = "video-gen-mvp-backend"
+version = "0.1.0"
+description = "FastAPI 薄代理后端：转发 UCloud 星图 ModelVerse kling-v3 视频生成请求并把成片转存到 UFile"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.5",
+    "httpx>=0.27",
+    "ufile",
+    "requests>=2.31",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
