@@ -2,6 +2,7 @@
 
 本模块只搭骨架：
 - 触发启动期配置校验（``app.config`` 在导入时实例化 ``Settings``）
+- 应用启动期初始化 SQLite（建表 + 孤儿清理），并打日志
 - 配置 CORS（开发期允许 ``http://localhost:5173``）
 - 配置请求体上限（16 MiB，覆盖前端 10MB 图 base64 膨胀后约 13.3MB + JSON 开销）
 - 暴露 ``GET /healthz``
@@ -10,17 +11,53 @@
 """
 from __future__ import annotations
 
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 # 触发启动期配置校验：缺失环境变量会立即抛出 RuntimeError
 from app.config import settings  # noqa: F401
+from app.storage import db as storage_db
+
+logger = logging.getLogger("app.startup")
+if not logger.handlers:
+    # 兜底配置：uvicorn 一般已经初始化了 root logger，这里只在裸跑时生效
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
 
 # 请求体上限：16 MiB（16 * 1024 * 1024 bytes），≥ 任务要求的 15MB
 MAX_BODY_SIZE = 16 * 1024 * 1024
 
-app = FastAPI(title="Video Gen MVP Backend")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用启动 / 关闭钩子。
+
+    启动期：
+    1. 建表（IF NOT EXISTS）
+    2. 把 ``status IN ('pending','running')`` 的旧行扫成 ``failure``
+       （进程崩溃 / 重启后的孤儿清理；数量可以为 0）
+    3. 日志输出 db 路径、建表完成、孤儿清理数量
+
+    关闭期：无特殊清理（每次仓储调用都用独立短连接）。
+    """
+    db_path = storage_db.resolve_db_path()
+    storage_db.init_db()
+    logger.info("tasks 表已就绪（db=%s）", db_path)
+    orphan_count = storage_db.mark_orphans_failed()
+    logger.info(
+        "启动孤儿清理：已将 %d 条 pending/running 旧任务置为 failure",
+        orphan_count,
+    )
+    yield
+
+
+app = FastAPI(title="Video Gen MVP Backend", lifespan=lifespan)
 
 # 开发期允许前端 Vite 默认端口
 app.add_middleware(

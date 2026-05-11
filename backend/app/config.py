@@ -17,13 +17,21 @@ ENV_FILE = PROJECT_ROOT / ".env"
 
 
 class Settings(BaseSettings):
-    """运行时配置。所有字段均为必填，缺失时启动失败。"""
+    """运行时配置。
+
+    凭据类字段（ModelVerse / UFile）均为必填，缺失时启动失败。
+    持久层路径 ``TASKS_DB_PATH`` 有默认值，可通过环境变量覆盖；
+    相对路径会被锚定到项目根（见 ``app.storage.db.resolve_db_path``）。
+    """
 
     MODELVERSE_API_KEY: str
     UFILE_PUBLIC_KEY: str
     UFILE_PRIVATE_KEY: str
     UFILE_BUCKET: str
     UFILE_REGION: str
+
+    # SQLite 数据库文件路径。相对路径以项目根为基准，默认 backend/tasks.db。
+    TASKS_DB_PATH: str = "backend/tasks.db"
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
