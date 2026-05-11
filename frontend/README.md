@@ -13,8 +13,9 @@
 ## 当前进度
 
 - T1：目录骨架占位（已完成）
-- T8：Vite + React + TS 基建 + 视觉契约 tokens + 占位双栏布局 + `/api` 代理（**本 task 已完成**）
-- T9 ～ T12：API client、IndexedDB、主界面与组件、历史菜单（后续 task 落地）
+- T8：Vite + React + TS 基建 + 视觉契约 tokens + 占位双栏布局 + `/api` 代理（已完成）
+- T10：IndexedDB history store（含首帧图 base64）（**本 task 已完成**，见 `src/storage/`）
+- T9 / T11 / T12：API client、主界面与组件、历史菜单（后续 task 落地）
 
 ## 技术栈
 
@@ -25,7 +26,7 @@
 | 样式方案 | CSS Modules + 全局 `:root` tokens | tokens 在 `src/index.css` 中 |
 | 字体 | IBM Plex Sans / Mono（Google Fonts 引入） | `index.html` 预连接 + 加载 |
 | HTTP | 原生 `fetch`（后续 task 用） | 不引第三方 HTTP 客户端 |
-| 持久化 | 浏览器 IndexedDB（后续 task 实现） | 仅存历史索引 |
+| 持久化 | 浏览器 IndexedDB（`idb` 封装） | 见 `src/storage/README.md`，仅存历史索引 + 首帧图 base64 |
 
 ## 目录结构
 
@@ -42,7 +43,10 @@ frontend/
     ├── App.tsx             # 应用根：占位双栏布局
     ├── App.module.css      # App 局部样式（CSS Modules）
     ├── index.css           # 全局 reset + 设计 tokens（:root CSS variables）
-    └── vite-env.d.ts       # Vite + CSS Modules 类型声明
+    ├── vite-env.d.ts       # Vite + CSS Modules 类型声明
+    └── storage/            # IndexedDB 历史缓存（T10），见该目录 README
+        ├── historyDb.ts
+        └── README.md
 ```
 
 ## 命令
