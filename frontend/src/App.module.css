@@ -5,49 +5,6 @@
   background: var(--color-bg);
 }
 
-.sidebar {
-  background: var(--color-surface);
-  border-right: 1px solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-5) var(--space-4);
-  gap: var(--space-4);
-}
-
-.sidebarHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 var(--space-2);
-}
-
-.sidebarTitle {
-  font-size: var(--font-size-md);
-  font-weight: 500;
-  color: var(--color-text);
-  letter-spacing: -0.01em;
-}
-
-.sidebarBadge {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-faint);
-  letter-spacing: 0.04em;
-}
-
-.sidebarBody {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-faint);
-  font-size: var(--font-size-sm);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-5);
-  text-align: center;
-}
-
 .main {
   display: flex;
   flex-direction: column;
@@ -81,13 +38,10 @@
 .mainBody {
   flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-md);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  padding: var(--space-7);
-  text-align: center;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
 }

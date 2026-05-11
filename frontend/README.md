@@ -14,8 +14,10 @@
 
 - T1：目录骨架占位（已完成）
 - T8：Vite + React + TS 基建 + 视觉契约 tokens + 占位双栏布局 + `/api` 代理（已完成）
-- T10：IndexedDB history store（含首帧图 base64）（**本 task 已完成**，见 `src/storage/`）
-- T9 / T11 / T12：API client、主界面与组件、历史菜单（后续 task 落地）
+- T9：后端 API client + 轮询 hook（已完成，见 `src/api/`）
+- T10：IndexedDB history store（含首帧图 base64）（已完成，见 `src/storage/`）
+- T11：主界面（输入 / 提交 / 生成中 / 失败 / 成功 → 视频播放）（**本 task 已完成**，见 `src/components/`）
+- T12：左侧历史菜单的真实实现（后续 task）——T11 已预留 `HistoryDrawer.tsx` 占位组件，T12 只需在该文件内填充即可
 
 ## 技术栈
 
@@ -40,10 +42,21 @@ frontend/
 ├── public/                 # 静态资源（当前为空，后续 task 按需放）
 └── src/
     ├── main.tsx            # React 入口
-    ├── App.tsx             # 应用根：占位双栏布局
+    ├── App.tsx             # 应用根：双栏布局；右侧挂 SubmissionWorkspace（可 remount reset）
     ├── App.module.css      # App 局部样式（CSS Modules）
     ├── index.css           # 全局 reset + 设计 tokens（:root CSS variables）
     ├── vite-env.d.ts       # Vite + CSS Modules 类型声明
+    ├── api/                # 后端 HTTP 客户端 + React 数据 hook（T9），见该目录 README
+    │   ├── client.ts
+    │   ├── hooks.ts
+    │   └── README.md
+    ├── components/         # UI 组件层（T11），见该目录 README
+    │   ├── PromptInput.tsx / .module.css
+    │   ├── ProgressPanel.tsx / .module.css
+    │   ├── VideoPlayer.tsx / .module.css
+    │   ├── SubmissionWorkspace.tsx / .module.css
+    │   ├── HistoryDrawer.tsx / .module.css   (T12 会替换该文件的占位实现)
+    │   └── README.md
     └── storage/            # IndexedDB 历史缓存（T10），见该目录 README
         ├── historyDb.ts
         └── README.md
@@ -124,14 +137,14 @@ server: {
 
 **布局**：`--sidebar-width`
 
-## 占位双栏布局
+## 双栏布局
 
-`App.tsx` 当前渲染两栏占位：
+`App.tsx` 渲染两栏：
 
-- 左：`<aside>` "历史" 区，固定宽 `--sidebar-width`（280px），由 T11 替换为 `HistoryDrawer`
-- 右：`<main>` "主工作区"，由 T10/T12 替换为输入区 + 进度态 + 视频播放器
+- 左：`<HistoryDrawer />`，固定宽 `--sidebar-width`（280px）；T11 只放占位文案，T12 会替换为真实历史列表。
+- 右：`<main>` 下挂 `<SubmissionWorkspace />`，最大宽 760px 居中，承担 idle / submitting / running / success / failure 全部视图。
 
-占位内容仅含标题与一条说明文字，**不预写**未来组件结构。
+「再生成一个」通过给 `SubmissionWorkspace` 自增 `key` 实现 remount-reset，不在 hook 层加专用 reset 方法。
 
 ## 不持有凭据
 
