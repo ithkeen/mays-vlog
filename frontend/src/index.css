@@ -1,0 +1,137 @@
+/*
+ * 全局设计 tokens — 视觉契约的固化层
+ *
+ * 契约（来自 .cadence/cycle-video-gen-mvp/DESIGN.md「视觉契约」）：
+ *   - 风格基调：minimal-refined
+ *   - 明暗主调：浅色
+ *   - 主导色色系：冷色系
+ *   - accent 用途：主 CTA / 焦点态 / 关键状态指示
+ *   - 字体倾向：无衬线
+ *
+ * 下面的具体取值（间距、字号、阴影、radius、motion）属于实现裁量权范围。
+ */
+
+:root {
+  /* ===== 色板：冷色系浅色背景 + 冷蓝单一强调色 ===== */
+  --color-bg: #f7f8fa;              /* 页面背景：极浅冷灰 */
+  --color-surface: #ffffff;          /* 卡片 / sidebar / main 表面 */
+  --color-surface-muted: #eef1f5;    /* 次级表面（hover、placeholder 区） */
+  --color-border: #dde2e9;           /* 主分割线 / 输入框边框 */
+  --color-border-strong: #c5cdd9;    /* 强调分割（focus 周边） */
+  --color-text: #0f172a;             /* 主文本：冷调深 slate */
+  --color-text-muted: #5b6473;       /* 次文本：冷灰 */
+  --color-text-faint: #94a0b0;       /* 辅助文本 / 占位 */
+
+  /* ===== 单一强调色（accent）：冷蓝；用于主 CTA / focus ring / 状态指示 ===== */
+  --color-accent: #1d4ed8;
+  --color-accent-hover: #1e40af;
+  --color-accent-soft: rgba(29, 78, 216, 0.08);
+  --color-accent-ring: rgba(29, 78, 216, 0.35);
+
+  /* ===== 危险色（仅用于错误/破坏性操作） ===== */
+  --color-danger: #b91c1c;
+  --color-danger-soft: rgba(185, 28, 28, 0.08);
+
+  /* ===== 字体 ===== */
+  --font-sans:
+    'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono:
+    'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* ===== 字号阶 ===== */
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 15px;
+  --font-size-lg: 18px;
+  --font-size-xl: 22px;
+  --font-size-2xl: 28px;
+
+  /* ===== 行高 ===== */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.55;
+
+  /* ===== 间距阶（8px 基准 + 4px 微调） ===== */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* ===== 圆角 ===== */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* ===== 阴影 ===== */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md:
+    0 4px 12px rgba(15, 23, 42, 0.06),
+    0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-focus: 0 0 0 3px var(--color-accent-ring);
+
+  /* ===== 布局尺寸 ===== */
+  --sidebar-width: 280px;
+
+  /* ===== motion ===== */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --easing-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ===== 全局正文默认 ===== */
+  color-scheme: light;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* 焦点态：accent 唯一来源 */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 500;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
