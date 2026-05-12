@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>网页版 AI 视频生成 MVP — 技术设计</title>
+<style>
+  :root {
+    --bg: #f5f8fb;
+    --surface: #ffffff;
+    --border: #d8e0e8;
+    --ink: #1a2332;
+    --muted: #5a6878;
+    --accent: #2563eb;
+    --accent-soft: #dbeafe;
+    --green: #2f9e6f;
+    --orange: #d97706;
+    --gray: #94a3b8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    max-width: 1040px;
+    margin: 40px auto;
+    padding: 0 32px 80px;
+    color: var(--ink);
+    line-height: 1.75;
+    background: var(--bg);
+  }
+  h1 {
+    font-size: 1.9em;
+    font-weight: 600;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 12px;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+  }
+  h2 {
+    margin-top: 48px;
+    font-size: 1.25em;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  h3 { font-size: 1em; margin-top: 28px; }
+  p, li { color: var(--ink); }
+  .lede { color: var(--muted); font-size: 1.02em; margin-top: 4px; }
+
+  pre.mermaid {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    overflow-x: auto;
+  }
+
+  .module-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+    margin: 16px 0;
+  }
+  .card {
+    padding: 14px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .card.new { border-color: var(--green); background: #effaf3; }
+  .card.modified { border-color: var(--orange); background: #fff5e1; }
+  .card.kept { border-color: var(--gray); background: #f1f5f9; }
+  .card h4 {
+    margin: 0 0 6px;
+    font-size: 0.95em;
+    font-weight: 600;
+  }
+  .card p {
+    margin: 0;
+    font-size: 0.88em;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  .tag {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-size: 0.7em;
+    margin-left: 6px;
+    vertical-align: middle;
+    font-weight: 500;
+  }
+  .tag.new { background: var(--green); color: white; }
+  .tag.modified { background: var(--orange); color: white; }
+  .tag.kept { background: var(--gray); color: white; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 14px 0;
+    background: var(--surface);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  th, td {
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 0.92em;
+    vertical-align: top;
+  }
+  th { background: #eef2f7; font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+
+  .decisions, .open-issues {
+    list-style: none;
+    padding: 0;
+  }
+  .decisions li, .open-issues li {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+  }
+  .open-issues li { border-left-color: var(--orange); }
+  .decisions strong { color: var(--accent); }
+  .open-issues strong { color: var(--orange); }
+
+  .contract-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .contract {
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+  .contract .label {
+    font-size: 0.75em;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .contract .value {
+    font-size: 1.02em;
+    font-weight: 600;
+    margin-top: 4px;
+    color: var(--ink);
+  }
+
+  .lane-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    margin: 16px 0;
+  }
+  .lane {
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+  .lane h4 {
+    margin: 0 0 10px;
+    color: var(--accent);
+    font-size: 0.95em;
+  }
+  .lane ol {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 0.92em;
+    color: var(--ink);
+  }
+  .lane ol li { margin-bottom: 4px; }
+
+  code {
+    background: #eef2f7;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+</style>
+</head>
+<body>
+
+<h1>网页版 AI 视频生成 MVP — 技术设计</h1>
+<p class="lede">前端 Vite + React + TS · 后端 Python + FastAPI · 视频生成走 UCloud 星图 ModelVerse <code>kling-v3</code> · 视频本体转存 UCloud UFile · 单用户单任务串行</p>
+
+<h2>整体形态</h2>
+<p>前端 SPA 在浏览器跑 UI、本地存历史索引、轮询任务状态。后端 FastAPI 是一层<strong>薄代理</strong>，承担三件不能放前端的事：持有外部凭证、异步轮询 1～5 分钟的视频任务、把成功视频从 ModelVerse 临时 URL 转存到 UFile 并签发可播放的私有 URL。视频本体不进浏览器，前端只存元数据。</p>
+
+<h2>架构图</h2>
+<pre class="mermaid">
+flowchart LR
+  subgraph Browser
+    UI[React UI<br/>输入·进度·历史抽屉]
+    IDB[(IndexedDB<br/>历史索引)]
+    Player[&lt;video&gt; 标签]
+  end
+
+  subgraph Backend [FastAPI 后端]
+    API[REST API]
+    BG[BackgroundTask<br/>编排器 + 轮询]
+    Lock[in-flight 锁]
+    DB[(SQLite<br/>tasks.db)]
+  end
+
+  subgraph UCloud
+    MV[ModelVerse<br/>kling-v3]
+    UF[UFile bucket<br/>video-mvp]
+  end
+
+  UI -- POST /api/tasks --> API
+  UI -- 5s 轮询 status --> API
+  UI -- 按需 play_url --> API
+  Player -- 私有签名 URL --> UF
+  UI <--> IDB
+
+  API <--> Lock
+  API <--> DB
+  API -- 启动 --> BG
+
+  BG -- 提交 + 轮询 --> MV
+  BG -- 拉 mp4 流 --> MV
+  BG -- putstream --> UF
+  BG -- 写状态 --> DB
+  API -- 签发 private_url --> UF
+</pre>
+
+<h2>关键流程</h2>
+<div class="lane-grid">
+  <div class="lane">
+    <h4>① 提交任务</h4>
+    <ol>
+      <li>前端校验后 POST <code>/api/tasks</code></li>
+      <li>后端检查 in-flight 锁，无则锁住 + 写 SQLite (status=pending)</li>
+      <li>启 BackgroundTask 后立即返回 <code>{id, status: pending}</code></li>
+    </ol>
+  </div>
+  <div class="lane">
+    <h4>② 后台编排</h4>
+    <ol>
+      <li>调 ModelVerse <code>/v1/tasks/submit</code> 拿 <code>task_id</code></li>
+      <li>每 10 秒轮询 status，5 分钟硬超时</li>
+      <li>成功 → <code>httpx.stream</code> 拉 mp4 → <code>ufile.putstream</code> 转存</li>
+      <li>更新 SQLite (status=success/failure)、释放锁</li>
+    </ol>
+  </div>
+  <div class="lane">
+    <h4>③ 前端感知</h4>
+    <ol>
+      <li>5 秒间隔 GET <code>/api/tasks/{id}</code></li>
+      <li>success → 调 <code>/play_url</code> 拿 1 小时签名 URL → 喂给 <code>&lt;video&gt;</code></li>
+      <li>同时把元数据写 IndexedDB（仅成功）</li>
+      <li>failure → 弹错，<strong>不</strong>写 IndexedDB</li>
+    </ol>
+  </div>
+  <div class="lane">
+    <h4>④ 历史回放</h4>
+    <ol>
+      <li>从 IndexedDB 读列表渲染抽屉</li>
+      <li>点某项 → GET <code>/api/tasks/{id}/play_url</code></li>
+      <li><code>&lt;video src=...&gt;</code> 播放 / <code>&lt;a download&gt;</code> 下载</li>
+      <li>删除 / 重命名走后端，前端同步更新 IndexedDB</li>
+    </ol>
+  </div>
+</div>
+
+<h2>模块</h2>
+
+<h3>前端 <code>frontend/</code></h3>
+<div class="module-grid">
+  <div class="card new"><h4>App.tsx <span class="tag new">新增</span></h4><p>根组件，组装输入区 + 进度态 + 历史抽屉</p></div>
+  <div class="card new"><h4>PromptInput.tsx <span class="tag new">新增</span></h4><p>prompt 文本框 + 可选首帧图上传 + 提交按钮</p></div>
+  <div class="card new"><h4>ProgressPanel.tsx <span class="tag new">新增</span></h4><p>当前任务进度态展示</p></div>
+  <div class="card new"><h4>HistoryDrawer.tsx <span class="tag new">新增</span></h4><p>成功历史列表，支持播放/下载/删除/重命名</p></div>
+  <div class="card new"><h4>VideoPlayer.tsx <span class="tag new">新增</span></h4><p>内嵌 video 标签播放器</p></div>
+  <div class="card new"><h4>lib/api.ts <span class="tag new">新增</span></h4><p>后端调用封装（fetch 薄壳）</p></div>
+  <div class="card new"><h4>lib/history.ts <span class="tag new">新增</span></h4><p>IndexedDB CRUD</p></div>
+  <div class="card new"><h4>lib/poller.ts <span class="tag new">新增</span></h4><p>5 秒间隔轮询当前任务状态</p></div>
+</div>
+
+<h3>后端 <code>backend/</code></h3>
+<div class="module-grid">
+  <div class="card new"><h4>app/main.py <span class="tag new">新增</span></h4><p>FastAPI 入口、CORS、路由挂载</p></div>
+  <div class="card new"><h4>app/api/tasks.py <span class="tag new">新增</span></h4><p>POST /tasks · GET /tasks/{id} · /play_url · /tasks 列表 · PATCH · DELETE</p></div>
+  <div class="card new"><h4>app/services/modelverse.py <span class="tag new">新增</span></h4><p>kling-v3 提交 + 轮询客户端</p></div>
+  <div class="card new"><h4>app/services/ufile.py <span class="tag new">新增</span></h4><p>UFile 上传 + 私有 URL 签发封装</p></div>
+  <div class="card new"><h4>app/services/orchestrator.py <span class="tag new">新增</span></h4><p>单任务后台编排：轮询 + 转存 + 落库</p></div>
+  <div class="card new"><h4>app/services/lock.py <span class="tag new">新增</span></h4><p>进程内单任务串行锁</p></div>
+  <div class="card new"><h4>app/storage/db.py <span class="tag new">新增</span></h4><p>SQLite 初始化 + tasks 表 CRUD</p></div>
+  <div class="card new"><h4>app/models.py <span class="tag new">新增</span></h4><p>Pydantic 请求/响应 DTO</p></div>
+  <div class="card new"><h4>app/config.py <span class="tag new">新增</span></h4><p>环境变量与默认参数</p></div>
+</div>
+
+<h2>数据模型</h2>
+
+<h3>SQLite <code>tasks</code> 表</h3>
+<table>
+  <thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>id</code></td><td>TEXT PK</td><td>后端 UUID</td></tr>
+    <tr><td><code>modelverse_task_id</code></td><td>TEXT</td><td>ModelVerse 返回的 task_id</td></tr>
+    <tr><td><code>prompt</code></td><td>TEXT</td><td>用户 prompt</td></tr>
+    <tr><td><code>has_image</code></td><td>INT</td><td>0/1，文生 or 图生</td></tr>
+    <tr><td><code>status</code></td><td>TEXT</td><td>pending/running/success/failure</td></tr>
+    <tr><td><code>error_message</code></td><td>TEXT?</td><td>失败原因</td></tr>
+    <tr><td><code>ufile_object_key</code></td><td>TEXT?</td><td>转存后对象 key（如 videos/{id}.mp4）</td></tr>
+    <tr><td><code>title</code></td><td>TEXT?</td><td>用户重命名标题</td></tr>
+    <tr><td><code>created_at</code> / <code>finished_at</code></td><td>INT</td><td>unix 秒</td></tr>
+  </tbody>
+</table>
+
+<h3>IndexedDB <code>history</code> store</h3>
+<p>仅存元数据（id / prompt / hasImage / title / createdAt / finishedAt），<strong>不缓存视频字节</strong>，不写失败任务。</p>
+
+<h2>接口</h2>
+<table>
+  <thead><tr><th>方法</th><th>路径</th><th>用途</th></tr></thead>
+  <tbody>
+    <tr><td>POST</td><td><code>/api/tasks</code></td><td>提交任务（文生 / 图生）。已有 in-flight → 409</td></tr>
+    <tr><td>GET</td><td><code>/api/tasks/{id}</code></td><td>查询单任务状态（不返视频 URL）</td></tr>
+    <tr><td>GET</td><td><code>/api/tasks/{id}/play_url</code></td><td>按需签发 1 小时私有 URL</td></tr>
+    <tr><td>GET</td><td><code>/api/tasks</code></td><td>历史列表（仅 success）</td></tr>
+    <tr><td>PATCH</td><td><code>/api/tasks/{id}</code></td><td>重命名标题</td></tr>
+    <tr><td>DELETE</td><td><code>/api/tasks/{id}</code></td><td>删 SQLite + 删 UFile 对象</td></tr>
+  </tbody>
+</table>
+
+<h2>非功能性约束</h2>
+<table>
+  <thead><tr><th>维度</th><th>约束</th></tr></thead>
+  <tbody>
+    <tr><td>安全</td><td>API Key / UFile 公私钥仅在后端环境变量；前端不出现任何外部凭证</td></tr>
+    <tr><td>CORS</td><td>UFile bucket 必须配 GET/HEAD + Range，暴露 Content-Length / Content-Range / Accept-Ranges</td></tr>
+    <tr><td>请求体上限</td><td>FastAPI body 上限调到 ≥ 15MB（覆盖 10MB 图 base64）</td></tr>
+    <tr><td>超时</td><td>提交 30s · 轮询 30s/次 · 任务硬超时 5 分钟 · 上传 300s 重试 1 次</td></tr>
+    <tr><td>可观测</td><td>结构化日志含 task_id / modelverse_task_id / status / duration_ms / request_id</td></tr>
+    <tr><td>部署</td><td>MVP 单机：vite 静态 + uvicorn 单进程；锁是进程内锁，不支持多进程</td></tr>
+  </tbody>
+</table>
+
+<h2>关键决策</h2>
+<ul class="decisions">
+  <li><strong>选 kling-v3</strong>：单 model id 覆盖文生 + 图生，零分支切换；对应"参数不暴露给用户"最自然</li>
+  <li><strong>选官方 ufile SDK 不选 boto3</strong>：项目锁 UCloud 账号体系，可移植性优势不成立；<code>private_url</code> 一行出 URL 比 boto3 三件套清爽</li>
+  <li><strong>视频转存 UFile 不存临时 URL</strong>：ModelVerse 返回的是临时签名 URL，会过期；只存 URL 几天后历史全 404，必须转存</li>
+  <li><strong>SQLite 不全内存</strong>：MVP 也要避免开发期重启丢任务；单文件零运维</li>
+  <li><strong>前端轮询不用 SSE</strong>：5 秒一次足够，单用户场景上 SSE 是负担</li>
+  <li><strong>BackgroundTasks 不用 Celery</strong>：单进程单任务串行已能 cover；重启丢 in-flight 是已知 trade-off，启动时把残留 running 行扫成 failure</li>
+  <li><strong>前端不缓存视频字节</strong>：避免 IndexedDB 配额问题；后端是单一权威源，删除 / 重命名走后端</li>
+  <li><strong>失败任务保留 SQLite 行但不进历史</strong>：满足"失败不入库"用户感知，又保留排查能力</li>
+</ul>
+
+<h2>留到执行时</h2>
+<ul class="open-issues">
+  <li><strong>UFile 预签名 URL 过期上限</strong>：本设计签 1 小时，若 US3 不允许联调时降到允许的最大值</li>
+  <li><strong>UFile cn-bj 是否支持 HTTPS</strong>：若不支持需换 region 或临时降级 HTTP</li>
+  <li><strong>ModelVerse 视频任务实际 P95 耗时</strong>：当前用 5 分钟硬超时，联调后调整</li>
+  <li><strong>ModelVerse 单账号视频任务并发上限</strong>：本地串行锁约束并发=1，理论不会触发；若 429 出现需加退避</li>
+  <li><code>&lt;video&gt;</code> 在 UFile 私有 URL 上的 seek / 下载实际表现：CORS 配齐后浏览器实测</li>
+  <li>残留 <code>running</code> 行处理策略：MVP 选"标记为 failure"；如要支持断点续轮询后续再做</li>
+  <li>前端 IndexedDB 与后端列表 diff 策略：MVP 以 IndexedDB 为准；如累积误差再切"以后端为准"</li>
+  <li>bucket 名 / region 具体值：取决于用户控制台实际创建，环境变量传入</li>
+</ul>
+
+<h2>视觉契约（首次建立 · 跨 cycle 沿用）</h2>
+<div class="contract-grid">
+  <div class="contract"><div class="label">风格基调</div><div class="value">minimal-refined</div></div>
+  <div class="contract"><div class="label">明暗主调</div><div class="value">浅色</div></div>
+  <div class="contract"><div class="label">主导色色系</div><div class="value">冷色系</div></div>
+  <div class="contract"><div class="label">accent 用途</div><div class="value">主 CTA · 焦点态 · 关键状态指示</div></div>
+  <div class="contract"><div class="label">字体倾向</div><div class="value">无衬线</div></div>
+</div>
+<p class="lede">spacing / 字号 / weight / radius / shadow / motion 等实现细节由 task-executor 在前端 task 中结合 frontend-design skill 决定，本契约只锁这 5 个跨 cycle 不变的字段。</p>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+
+</body>
+</html>

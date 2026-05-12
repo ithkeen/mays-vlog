@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>网页版 AI 视频生成平台 MVP</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    max-width: 960px;
+    margin: 40px auto;
+    padding: 0 24px 80px;
+    color: #1f2328;
+    line-height: 1.75;
+    background: #fafbfc;
+  }
+  h1 {
+    border-bottom: 2px solid #1f2328;
+    padding-bottom: 10px;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    color: #57606a;
+    font-size: 15px;
+    margin-bottom: 28px;
+  }
+  h2 {
+    margin-top: 40px;
+    padding-left: 10px;
+    border-left: 4px solid #2563eb;
+  }
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 20px 0 8px;
+  }
+  .meta-card {
+    background: #fff;
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    padding: 14px 18px;
+  }
+  .meta-card h4 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    color: #57606a;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .meta-card p { margin: 0; font-size: 15px; }
+  .scope-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin: 24px 0;
+  }
+  .card {
+    padding: 18px 22px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    background: #fff;
+  }
+  .card.do { background: #f0fdf4; border-color: #4ade80; }
+  .card.dont { background: #fef2f2; border-color: #f87171; }
+  .card h3 { margin-top: 0; }
+  .card ul { padding-left: 20px; margin: 8px 0 0; }
+  .card li { margin-bottom: 6px; }
+  .card.dont li { color: #7a1f1f; }
+  .acceptance {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0 0;
+  }
+  .acceptance li {
+    padding: 10px 14px 10px 36px;
+    position: relative;
+    background: #fff;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    margin-bottom: 8px;
+  }
+  .acceptance li::before {
+    content: "☐";
+    position: absolute;
+    left: 12px;
+    top: 9px;
+    font-size: 18px;
+    color: #57606a;
+  }
+  pre.mermaid {
+    background: #fff;
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    padding: 20px;
+    overflow-x: auto;
+    text-align: center;
+  }
+  .lead {
+    background: #fff;
+    border-left: 4px solid #2563eb;
+    padding: 14px 20px;
+    margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+    font-size: 15.5px;
+  }
+</style>
+</head>
+<body>
+
+<h1>网页版 AI 视频生成平台 MVP</h1>
+<p class="subtitle">一个仅供个人创作者本机自用试玩的网页应用 · 在浏览器里打开使用，不打包成任何桌面或移动端客户端</p>
+
+<div class="lead">
+打开网页就能用，无需登录。在输入框里写一段对视频内容的描述，可以选择上传一张首帧图，点击生成即可。一次只跑一个任务，成功后视频会出现在主区域，并自动归档到右侧历史菜单中，可随时回看、下载、重命名或删除。
+</div>
+
+<div class="meta-grid">
+  <div class="meta-card">
+    <h4>使用者</h4>
+    <p>单个个人创作者，自用试玩</p>
+  </div>
+  <div class="meta-card">
+    <h4>核心场景</h4>
+    <p>桌面端浏览器打开即用，本机自存</p>
+  </div>
+  <div class="meta-card">
+    <h4>核心交互</h4>
+    <p>单次 prompt 输入 + 可选首帧图</p>
+  </div>
+  <div class="meta-card">
+    <h4>历史持久化</h4>
+    <p>本浏览器内，清缓存即丢失</p>
+  </div>
+</div>
+
+<h2>用户旅程</h2>
+<pre class="mermaid">
+flowchart LR
+  A[打开网页<br/>无需登录] --> B[在输入框<br/>写 prompt]
+  B --> C{是否上传<br/>首帧图?}
+  C -->|不传| D[点击生成<br/>文生视频]
+  C -->|传一张| E[点击生成<br/>图生视频]
+  D --> F[输入区锁定<br/>显示生成中]
+  E --> F
+  F --> G{结果?}
+  G -->|成功| H[主区域播放视频<br/>+ 入历史菜单]
+  G -->|失败| I[弹出错误提示<br/>不入历史]
+  H --> J[历史菜单中可:<br/>预览 / 下载 / 重命名 / 删除]
+  I --> B
+</pre>
+
+<h2>范围</h2>
+<div class="scope-grid">
+  <div class="card do">
+    <h3>✅ 做什么</h3>
+    <ul>
+      <li>单个 prompt 输入框，提交一次生成一个视频</li>
+      <li>可选上传 <strong>一张</strong> 首帧参考图（同时支持文生视频与图生视频）</li>
+      <li>同时只允许一个进行中的任务，进行期间输入区锁定</li>
+      <li>成功的视频在主区域可播放</li>
+      <li>成功的生成自动进入历史菜单（按时间倒序）</li>
+      <li>历史每条记录支持：<strong>预览播放 / 下载 / 删除 / 重命名</strong></li>
+      <li>历史持久化在本浏览器，刷新和重开浏览器仍在</li>
+    </ul>
+  </div>
+  <div class="card dont">
+    <h3>❌ 不做什么</h3>
+    <ul>
+      <li>不做多轮对话，不做"基于已有视频继续修改"</li>
+      <li>不做尾帧图、不做多张参考图、不做参考视频</li>
+      <li>不暴露任何参数控件（时长 / 宽高比 / 分辨率等全用默认值）</li>
+      <li>不做并发任务、不做任务取消、不做失败重试按钮</li>
+      <li>失败任务不入历史</li>
+      <li>历史菜单不做搜索 / 筛选 / 分类 / 收藏</li>
+      <li>不做账号、不做登录、不做跨设备同步</li>
+      <li>不做对外分享链接、不做社交平台一键发布</li>
+      <li>不打包为桌面客户端 / 移动端 App，纯浏览器网页</li>
+      <li>不适配手机 / 平板浏览器，不做暗色模式 / 多语言</li>
+    </ul>
+  </div>
+</div>
+
+<h2>验收标准</h2>
+<ul class="acceptance">
+  <li>打开网页 <strong>无需任何登录或注册</strong>，立刻可用</li>
+  <li>能在输入框中输入 prompt 文本</li>
+  <li>能上传 <strong>一张</strong> 首帧参考图，且提交前可移除并重新上传</li>
+  <li><strong>不传图</strong> 也能成功提交并生成（文生视频）</li>
+  <li><strong>传了图</strong> 时，生成的视频以该图为首帧（图生视频）</li>
+  <li>提交后输入框与提交按钮被锁定，UI 明确显示"生成中"</li>
+  <li>进行中无法再次提交，且无可见的"取消"入口</li>
+  <li>任务成功：主区域可播放刚生成的视频，历史顶部新增一条记录，输入区恢复可用</li>
+  <li>任务失败：能看到失败提示，历史菜单中 <strong>不出现</strong> 该次记录，输入区恢复可用</li>
+  <li>历史菜单按生成时间 <strong>倒序</strong> 排列</li>
+  <li>点击历史任意一条：主区域能播放该次视频，并能看到当时的 prompt 与首帧图（如有）</li>
+  <li>历史中每条记录能下载视频文件到本地</li>
+  <li>历史中每条记录能删除，删除后立即从列表移除</li>
+  <li>历史中每条记录能重命名 / 加自定义标题，刷新后仍保留</li>
+  <li>刷新页面后，历史中的所有记录（视频、prompt、首帧图、标题）仍可见</li>
+  <li>关闭浏览器再次打开网页后，历史中的所有记录仍可见</li>
+</ul>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'default' });
+</script>
+
+</body>
+</html>
