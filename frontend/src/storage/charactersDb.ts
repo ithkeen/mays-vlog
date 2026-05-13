@@ -14,12 +14,12 @@
  * - `InvalidImageError`：image MIME 不在允许集合
  * - IDB 底层错误直接透传（DOMException）
  *
- * 复用 `historyDb.ts` 持有的共享 `video-mvp` DB 与 schema；本文件只负责 store 操作。
+ * DB 入口（`video-mvp` + 版本 + `onUpgradeNeeded`）统一由 `historyDb.ts` 持有，
+ * 本文件 import 其 `getDb` 复用；不在本文件重复 schema 定义，避免双写漂移。
  */
 
-import { openDB, type IDBPDatabase } from 'idb'
 import { useCallback, useEffect, useState } from 'react'
-import type { AppDbSchema, CharacterRecord } from './historyDb'
+import { getDb, type CharacterRecord } from './historyDb'
 
 /** 对外暴露的 Character 实体；与 IDB 存储结构一致。 */
 export type Character = CharacterRecord
@@ -31,8 +31,6 @@ export type CreateCharacterInput = {
   image: Blob
 }
 
-const DB_NAME = 'video-mvp'
-const DB_VERSION = 2
 const STORE_NAME = 'characters'
 const INDEX_CREATED_AT = 'by_created_at'
 const INDEX_NAME_KEY = 'by_name_key'
@@ -62,34 +60,6 @@ export class InvalidImageError extends Error {
     super(message)
     this.name = 'InvalidImageError'
   }
-}
-
-let dbPromise: Promise<IDBPDatabase<AppDbSchema>> | null = null
-
-/**
- * 打开共享 DB。
- *
- * 与 `historyDb.ts` 的 `getDb` 行为一致：同名 DB（`video-mvp`）+ 同版本（v2）
- * + 同 `onUpgradeNeeded`，确保任一模块先调用都能拿到完整 schema。
- * `idb` 的 `openDB` 对同名 DB 的多次调用会复用底层连接，不会重复触发升级。
- */
-function getDb(): Promise<IDBPDatabase<AppDbSchema>> {
-  if (!dbPromise) {
-    dbPromise = openDB<AppDbSchema>(DB_NAME, DB_VERSION, {
-      upgrade(db, oldVersion) {
-        if (oldVersion < 1) {
-          const store = db.createObjectStore('history', { keyPath: 'id' })
-          store.createIndex('finishedAt', 'finishedAt')
-        }
-        if (oldVersion < 2) {
-          const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
-          store.createIndex(INDEX_CREATED_AT, 'createdAt')
-          store.createIndex(INDEX_NAME_KEY, 'nameKey', { unique: true })
-        }
-      },
-    })
-  }
-  return dbPromise
 }
 
 /** 取全部角色，按 `createdAt` DESC（最新在前）。通过 `by_created_at` 反向游标实现。 */

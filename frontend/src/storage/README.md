@@ -16,8 +16,8 @@
 
 ## 模块文件
 
-- `historyDb.ts`：IndexedDB 封装（基于 `idb` 库）。持有共享 `AppDbSchema` 类型与 `onUpgradeNeeded` 分级升级逻辑；暴露 history 的 store 操作 + 合并函数。
-- `charactersDb.ts`：Character 库的 store 操作（`listCharacters` / `createCharacter` / `deleteCharacter`）+ React hook `useCharacters`；自定义错误类（`EmptyNameError` / `DuplicateNameError` / `InvalidImageError`）用于让调用方区分校验失败种类。schema 沿用 `historyDb.ts` 的 `AppDbSchema`，并在本文件内**复刻**同款 `onUpgradeNeeded` 升级流，确保任一模块先调用 `openDB` 都能拿到完整 schema。
+- `historyDb.ts`：IndexedDB 封装（基于 `idb` 库）。**唯一**持有共享 `AppDbSchema` 类型、`DB_NAME` / `DB_VERSION` 常量与 `onUpgradeNeeded` 分级升级逻辑；导出 `getDb` 供其他 store 模块复用；暴露 history 的 store 操作 + 合并函数。
+- `charactersDb.ts`：Character 库的 store 操作（`listCharacters` / `createCharacter` / `deleteCharacter`）+ React hook `useCharacters`；自定义错误类（`EmptyNameError` / `DuplicateNameError` / `InvalidImageError`）用于让调用方区分校验失败种类。DB 入口直接 import `historyDb.ts` 的 `getDb`，不重复 DB_NAME / DB_VERSION / upgrade 流，schema 单一真相源在 `historyDb.ts`。
 
 ## IndexedDB schema
 

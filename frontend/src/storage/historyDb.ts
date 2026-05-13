@@ -87,7 +87,8 @@ const INDEX_NAME = 'finishedAt'
 let dbPromise: Promise<IDBPDatabase<AppDbSchema>> | null = null
 
 /**
- * 打开共享 DB（history + characters）。
+ * 打开共享 DB（history + characters）。本模块是 `video-mvp` DB 的唯一入口，
+ * `charactersDb.ts` 等其他 store 模块直接 import 本函数复用，避免 schema 双写。
  *
  * 升级流按 `oldVersion` 分级：
  *   - v0 → v1：建 `history` store + `finishedAt` 索引（保留首次安装路径）
@@ -96,7 +97,7 @@ let dbPromise: Promise<IDBPDatabase<AppDbSchema>> | null = null
  * 因 `createObjectStore` 不影响其他 store 的既有数据，从 v1 升 v2 时 `history`
  * 数据原样保留；从 v0 直装到 v2 时按顺序走完两个分支。
  */
-function getDb(): Promise<IDBPDatabase<AppDbSchema>> {
+export function getDb(): Promise<IDBPDatabase<AppDbSchema>> {
   if (!dbPromise) {
     dbPromise = openDB<AppDbSchema>(DB_NAME, DB_VERSION, {
       upgrade(db, oldVersion) {
