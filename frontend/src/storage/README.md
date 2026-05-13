@@ -17,6 +17,7 @@
 ## 模块文件
 
 - `historyDb.ts`：IndexedDB 封装（基于 `idb` 库）。持有共享 `AppDbSchema` 类型与 `onUpgradeNeeded` 分级升级逻辑；暴露 history 的 store 操作 + 合并函数。
+- `charactersDb.ts`：Character 库的 store 操作（`listCharacters` / `createCharacter` / `deleteCharacter`）+ React hook `useCharacters`；自定义错误类（`EmptyNameError` / `DuplicateNameError` / `InvalidImageError`）用于让调用方区分校验失败种类。schema 沿用 `historyDb.ts` 的 `AppDbSchema`，并在本文件内**复刻**同款 `onUpgradeNeeded` 升级流，确保任一模块先调用 `openDB` 都能拿到完整 schema。
 
 ## IndexedDB schema
 
@@ -117,6 +118,57 @@ await putMany([{
 await updateTitle(id, '新标题')
 await remove(id)
 ```
+
+## Character 库（`charactersDb.ts`）
+
+### 对外接口
+
+| 导出 | 行为 |
+|---|---|
+| `listCharacters()` | 取全部角色；按 `createdAt` **DESC**（最新在前），通过 `by_created_at` 反向游标实现 |
+| `createCharacter({ name, instructions?, image })` | 校验 → 写 IDB → 返回完整 `Character`；见下文「校验与错误」 |
+| `deleteCharacter(id)` | 删除单条；幂等（id 不存在不抛错） |
+| `useCharacters()` | React hook；暴露 `characters` / `isLoading` / `error` / `refresh` / `create` / `remove` |
+| `Character` | 实体类型，等价于 `historyDb.ts` 中的 `CharacterRecord` |
+| `CreateCharacterInput` | `createCharacter` / `useCharacters().create` 入参类型 |
+| `EmptyNameError` / `DuplicateNameError` / `InvalidImageError` | 自定义错误类（可被 `instanceof` 区分） |
+
+### 校验与错误
+
+`createCharacter` 按以下顺序校验，命中即抛：
+
+1. `name.trim() === ''` → `EmptyNameError`
+2. `image.type ∉ { 'image/png', 'image/jpeg', 'image/webp' }` → `InvalidImageError`
+3. 同一个 readwrite 事务内查 `by_name_key` 命中 → `DuplicateNameError`
+   （即使有并发漏检，IDB unique 索引也会让 `add` 失败，透传为 DOMException）
+
+`nameKey = name.trim().toLowerCase()`；`name` 字段保留原大小写用于展示。
+
+### `useCharacters` 用法
+
+```ts
+const { characters, isLoading, error, refresh, create, remove } = useCharacters()
+
+// 挂载时自动拉一次；外部数据若有变化可手动 refresh
+await refresh()
+
+// create / remove 成功后乐观刷新内存列表，无需再调用 refresh
+try {
+  const c = await create({ name: 'Alice', instructions: '...', image: blob })
+} catch (e) {
+  if (e instanceof EmptyNameError) { /* ... */ }
+  else if (e instanceof DuplicateNameError) { /* ... */ }
+  else if (e instanceof InvalidImageError) { /* ... */ }
+  else { throw e }
+}
+
+await remove(c.id)
+```
+
+- `characters`：当前内存列表，已按 `createdAt` DESC 排序
+- `isLoading`：仅在 `refresh` 进行中为 `true`；`create` / `remove` 不切此标志（视调用方需要在 UI 层自己加局部 loading）
+- `error`：`refresh` 过程的错误；`create` / `remove` 的错误**直接抛出**，不写入 `error` 字段，便于调用方按错误种类分支响应
+- 与 history 现有惯例对齐：history 的消费组件（`HistoryDrawer`）直接在组件内用 `useState + useEffect` 管列表 + merge，因为它要做「以后端为权威源的三分支合并」；Character 库**没有跨设备权威源**，本地即权威，把数据 + 操作收敛进单个 hook 更紧凑——避免在抽屉组件里散落同样模板的 try/catch + setState。故选择「合入 `charactersDb.ts`」而非新建独立 hook 文件
 
 ## 依赖
 
