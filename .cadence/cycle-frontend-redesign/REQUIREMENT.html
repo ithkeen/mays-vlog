@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>前端布局重构：sidebar 多入口 + 主区整页切换</title>
+<style>
+  :root {
+    --fg: #1f2937;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #1d4ed8;
+    --bg-soft: #f8fafc;
+    --do: #10b981;
+    --dont: #ef4444;
+  }
+  body {
+    font-family: "IBM Plex Sans", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    max-width: 960px;
+    margin: 40px auto;
+    padding: 0 28px 80px;
+    color: var(--fg);
+    line-height: 1.75;
+    background: #fff;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid var(--fg);
+  }
+  h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 40px 0 16px;
+  }
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 18px 0 10px;
+  }
+  p { margin: 12px 0; }
+  .lead {
+    color: var(--muted);
+    font-size: 15px;
+  }
+  .meta {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--bg-soft);
+    color: var(--muted);
+    font-size: 12px;
+    margin-right: 6px;
+  }
+  .scope-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0 28px;
+  }
+  .card {
+    padding: 18px 22px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: #fff;
+  }
+  .card.do {
+    background: #f0fdf4;
+    border-color: #86efac;
+  }
+  .card.dont {
+    background: #fef2f2;
+    border-color: #fca5a5;
+  }
+  .card h3 {
+    margin-top: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card.do h3::before {
+    content: "✓";
+    color: var(--do);
+    font-weight: 700;
+  }
+  .card.dont h3::before {
+    content: "✕";
+    color: var(--dont);
+    font-weight: 700;
+  }
+  .card ul {
+    margin: 0;
+    padding-left: 18px;
+  }
+  .card li {
+    margin: 6px 0;
+    font-size: 14px;
+  }
+  .acceptance {
+    margin: 16px 0;
+    padding: 0;
+    list-style: none;
+  }
+  .acceptance li {
+    padding: 10px 14px 10px 36px;
+    position: relative;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .acceptance li::before {
+    content: "☐";
+    position: absolute;
+    left: 12px;
+    top: 10px;
+    color: var(--muted);
+    font-size: 16px;
+  }
+  .layout-sketch {
+    margin: 16px 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg-soft);
+    padding: 18px;
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: 12px;
+    min-height: 280px;
+  }
+  .sketch-sidebar {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: stretch;
+  }
+  .sketch-sidebar .logo {
+    height: 24px;
+    background: var(--bg-soft);
+    border-radius: 6px;
+    margin-bottom: 6px;
+  }
+  .sketch-nav-item {
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    padding: 10px 4px 8px;
+    border-radius: 6px;
+    position: relative;
+  }
+  .sketch-nav-item .icon {
+    display: block;
+    width: 22px;
+    height: 22px;
+    background: #d1d5db;
+    border-radius: 6px;
+    margin: 0 auto 4px;
+  }
+  .sketch-nav-item.active {
+    color: var(--fg);
+    font-weight: 600;
+  }
+  .sketch-nav-item.active .icon { background: var(--fg); }
+  .sketch-nav-item.active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    background: var(--fg);
+    border-radius: 2px;
+  }
+  .sketch-main {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+  }
+  .sketch-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fg);
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 14px;
+  }
+  .sketch-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    flex: 1;
+  }
+  .sketch-cell {
+    aspect-ratio: 3 / 4;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #cbd5e1, #475569);
+    position: relative;
+    overflow: hidden;
+  }
+  .sketch-cell.placeholder {
+    background: #f1f5f9;
+    border: 1px dashed #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .sketch-cell .cap {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 8px 8px 6px;
+    background: linear-gradient(180deg, transparent, rgba(0,0,0,0.5));
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .removed {
+    background: #fff7ed;
+    border: 1px solid #fdba74;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .removed b { color: #9a3412; }
+  pre.mermaid {
+    background: var(--bg-soft);
+    padding: 18px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    overflow-x: auto;
+  }
+</style>
+</head>
+<body>
+
+<h1>前端布局重构：sidebar 多入口 + 主区整页切换</h1>
+<p class="lead">
+  <span class="meta">cycle</span><span class="meta">frontend-redesign</span><span class="meta">2026-05-13</span>
+</p>
+
+<p>
+  当前 MVP 前端是 "主区 SubmissionWorkspace + grid 左列常驻 HistoryDrawer + fixed 浮层 CharacterDrawer" 的 <b>主区 + 抽屉</b> 形态。本次重构对齐 Runway 主页视觉骨架——左侧改为常驻、icon + label 竖向窄 sidebar，承载 3 个一级入口（Generate / History / Characters），主区随选择整页切换；HistoryDrawer 与 CharacterDrawer 两个抽屉容器整体废除。Character 与 History 列表的展示样式参考 Runway Characters 列表页的 grid 大卡（缩略图满铺 + 底部渐变 + 标题）。视觉契约保留（minimal-refined / 浅色 / 冷色系 / accent <code>#1d4ed8</code> / IBM Plex Sans）。
+</p>
+<p>
+  <b>本次只动 UI 骨架与样式</b>，不动内部能力（Character 编辑、Character 接入生成流程仍是已知限制）。
+</p>
+
+<h2>布局示意</h2>
+<div class="layout-sketch">
+  <div class="sketch-sidebar">
+    <div class="logo"></div>
+    <div class="sketch-nav-item"><span class="icon"></span>Generate</div>
+    <div class="sketch-nav-item"><span class="icon"></span>History</div>
+    <div class="sketch-nav-item active"><span class="icon"></span>Characters</div>
+  </div>
+  <div class="sketch-main">
+    <div class="sketch-header">Characters</div>
+    <div class="sketch-grid">
+      <div class="sketch-cell placeholder">+ New</div>
+      <div class="sketch-cell"><div class="cap">Rowan</div></div>
+      <div class="sketch-cell"><div class="cap">Mina</div></div>
+      <div class="sketch-cell"><div class="cap">Kael</div></div>
+    </div>
+  </div>
+</div>
+<p class="lead">Sidebar 永远是窄态 icon + label（不展开 / 不折叠），3 个一级入口竖向堆叠；主区顶部 header 仅放当前页标题，右侧留空；列表用 grid 大卡，首位为占位卡。</p>
+
+<h2>用户旅程</h2>
+<pre class="mermaid">
+flowchart LR
+  Start([进入应用]) --> Gen["/generate<br/>主区 = SubmissionWorkspace"]
+  Gen -- 点 sidebar History --> Hist["/history<br/>grid 视频卡"]
+  Gen -- 点 sidebar Characters --> Chars["/characters<br/>grid 角色卡 (首位 +)"]
+  Hist -- 点卡 --> HistDetail["/history/{id}<br/>独立详情页 播放"]
+  HistDetail -- 返回 --> Hist
+  Chars -- 点 + 占位卡 --> NewChar["/characters/new<br/>本页表单态"]
+  NewChar -- 提交/取消 --> Chars
+  Chars -- 点已有卡 --> Expand["卡内联展开<br/>Name / Instructions / 大图"]
+  Expand -- 再点 --> Chars
+  Expand -- 点删除 --> Confirm["卡内二次确认"]
+  Confirm -- 确认 --> Chars
+</pre>
+
+<h2>范围</h2>
+<div class="scope-grid">
+  <div class="card do">
+    <h3>做什么</h3>
+    <ul>
+      <li>左侧常驻窄态 sidebar（icon + 下方小字 label），3 个一级入口 Generate / History / Characters，选中态加深 + 左侧细竖线</li>
+      <li>主区随选择整页切换；URL 反映当前页（<code>/generate</code> / <code>/history</code> / <code>/history/{id}</code> / <code>/characters</code> / <code>/characters/new</code>）；刷新后保留在当前页</li>
+      <li>主区顶部 header 仅左侧放当前页标题；右侧留空</li>
+      <li>Generate 页包装现有 SubmissionWorkspace，内部组件逻辑不动</li>
+      <li>History 页 grid 卡（视频首帧满铺 + 底部渐变 + 标题 + 完成时间）；点卡进 <code>/history/{id}</code> 独立详情页</li>
+      <li>Characters 页 grid 卡（参考图满铺 + 底部渐变 + Name）；首位永远是 + 占位卡</li>
+      <li>点 + 占位卡 → 主区切换为创建表单态（路由 <code>/characters/new</code>），表单字段保留现状（参考图 + Name + Instructions）</li>
+      <li>点已有角色卡 → 卡内联展开（Name / Instructions / 大图），再点收起；删除走"卡内二次确认"</li>
+      <li>保留现有视觉契约：accent <code>#1d4ed8</code> / IBM Plex Sans / 浅色冷色</li>
+      <li>移除 HistoryDrawer / CharacterDrawer 抽屉容器、<code>openDrawer</code> 状态机、主界面 header 上原抽屉按钮</li>
+    </ul>
+  </div>
+  <div class="card dont">
+    <h3>不做什么</h3>
+    <ul>
+      <li>不补 Character 编辑（改名 / 换图 / 改描述）</li>
+      <li>不补 Character 接入生成流程（Generate 选角色一起生成）</li>
+      <li>不做跨页可见的生成进度（无全局状态栏 / 无 sidebar badge）</li>
+      <li>不改视觉契约（主色 / 字体 / 间距 / 字号 token 都不动）</li>
+      <li>不做 sidebar 折叠态（永远窄态，无 240px 展开）</li>
+      <li>不放 sidebar 底部账户 / 设置 / 帮助 / 反馈入口</li>
+      <li>不放主区顶部 header 右侧任何按钮（credits / Dev Portal / 新建 / 清空 / 设置等都不放）</li>
+      <li>不做 History 卡 hover 删除/下载等快捷操作；不做 List ↔ Grid toggle</li>
+      <li>不做移动 / 平板适配；不做暗色模式；不做多语言</li>
+      <li>不做键盘快捷键（Cmd+1/2/3 切 sidebar 等）</li>
+      <li>不动后端（API / DB schema / 任务编排都不变）</li>
+      <li>不改内部组件逻辑（PromptInput / VideoPlayer / ProgressPanel / 表单字段都保留）</li>
+      <li>不引入社区流 / 外部参考流 / inspirations</li>
+    </ul>
+  </div>
+</div>
+
+<div class="removed">
+  <b>必须代码层面移除：</b>
+  <code>HistoryDrawer</code> 容器（grid 左列常驻 + 列宽塌缩开关）、<code>CharacterDrawer</code> 容器（fixed 浮层 + 列表/创建两态外壳）、<code>openDrawer: 'none' | 'history' | 'characters'</code> 互斥状态机、主界面 header 上原抽屉触发按钮。
+</div>
+
+<h2>验收</h2>
+<ul class="acceptance">
+  <li>用户进入应用默认看到 Generate 页，URL 是 <code>/generate</code></li>
+  <li>左侧能看到一条永远窄态的 sidebar，3 个一级入口（Generate / History / Characters）以 icon + 下方 label 竖向排列</li>
+  <li>点击任一 sidebar 入口，主区整页切换到对应内容，URL 同步变化</li>
+  <li>任一页刷新浏览器后停留在当前页（如刷新 <code>/history</code> 仍回到 History 而不是 Generate）</li>
+  <li>History 页能看到所有已成功的视频作品 grid 卡片，每张卡是"视频首帧满铺背景 + 底部渐变叠层 + 标题 + 时间"样式</li>
+  <li>History 页点击任一卡片 → 进入 <code>/history/{id}</code> 独立详情页，能播放视频并查看 prompt / 元数据</li>
+  <li>History 详情页能通过面包屑或返回按钮回到 History 列表</li>
+  <li>Characters 页能看到 grid 卡片，首位是带 + icon 的占位卡，其余每张是"参考图满铺背景 + 底部渐变叠层 + Name"样式</li>
+  <li>点占位卡 → 主区切换为创建表单态，URL 变 <code>/characters/new</code>，能填参考图 / Name / Instructions</li>
+  <li>创建表单态点提交或取消后回到 Characters 列表态（URL 回 <code>/characters</code>）</li>
+  <li>点任一 Character 卡能卡内联展开，看到 Name / Instructions / 参考图大图；再点收起</li>
+  <li>Character 卡上点删除有"卡内二次确认"交互（与现状一致）</li>
+  <li>Generate 页发起生成后切到 History / Characters 页，应用任何位置都看不到全局进度提示</li>
+  <li>Generate 页发起生成后切到其他页再切回 Generate，能继续看到当前任务的进度（任务未中断、进度未丢失）</li>
+  <li>应用代码中已无 <code>HistoryDrawer</code> / <code>CharacterDrawer</code> 抽屉容器组件，也无 <code>openDrawer</code> 抽屉互斥状态机</li>
+  <li>应用整体视觉契约保持：accent 仍 <code>#1d4ed8</code> / 字体仍 IBM Plex Sans / 浅色冷色基调不变</li>
+  <li>现有 "Character 编辑" 与 "Character 接入生成流程" 两项已知限制本轮不消除（继续作为已知限制存在）</li>
+</ul>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+</body>
+</html>

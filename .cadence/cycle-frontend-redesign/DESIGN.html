@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>前端布局重构 · 设计</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; max-width: 980px; margin: 40px auto; padding: 0 24px; color: #222; line-height: 1.7; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+  h2 { margin-top: 36px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+  h3 { margin-top: 20px; }
+  code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 0.92em; }
+  .module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 16px 0; }
+  .card { padding: 14px 18px; border-radius: 8px; border: 1px solid #ddd; background: #fafafa; }
+  .card.new { border-color: #4caf50; background: #f0f9f0; }
+  .card.modified { border-color: #ff9800; background: #fff7e6; }
+  .card.removed { border-color: #e53935; background: #fdecea; }
+  .card.kept { border-color: #999; background: #f5f5f5; }
+  .card h3 { margin: 0 0 6px; font-size: 1em; }
+  .card p { margin: 0; color: #555; font-size: 0.92em; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.72em; margin-left: 6px; vertical-align: middle; color: white; }
+  .tag.new { background: #4caf50; } .tag.modified { background: #ff9800; } .tag.removed { background: #e53935; } .tag.kept { background: #999; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  th, td { border: 1px solid #e0e0e0; padding: 8px 12px; text-align: left; font-size: 0.94em; }
+  th { background: #f5f7fa; }
+  ul li { margin: 4px 0; }
+  blockquote { border-left: 3px solid #1d4ed8; padding: 2px 14px; color: #555; background: #f8faff; margin: 12px 0; }
+</style>
+</head>
+<body>
+
+<h1>前端布局重构：sidebar 多入口 + 主区整页切换</h1>
+<p>本次纯前端重构：把现有的"主区 + 抽屉"形态改为"常驻窄态 sidebar + 主区路由整页切换"。引入 <code>react-router-dom</code> v6，用一个 <code>AppShell</code> 承载 sidebar + main outlet；三个一级页面 Generate / History / Characters <strong>全部 keep-mounted</strong>，以 CSS <code>display</code> 切换可见性 —— 这是为了让 Generate 页的任务进度与轮询 hook 不因切页而丢失，同时满足"内部组件逻辑不动"的需求边界。HistoryDrawer / CharacterDrawer / <code>openDrawer</code> 抽屉互斥状态机整体删除；两者的内部子组件（HistoryDetail / CharacterCard / CharacterCreateForm 等）平提到 <code>pages/</code> 与 <code>components/{character,history}/</code> 下复用。</p>
+
+<h2>架构图</h2>
+<pre class="mermaid">
+graph TD
+  Router[BrowserRouter]
+  Router --> AppShell
+  AppShell --> Sidebar
+  AppShell --> Outlet[Main Outlet]
+  Outlet --> G[GeneratePage<br/>keep-mounted]
+  Outlet --> H[HistoryPage<br/>keep-mounted]
+  Outlet --> C[CharactersPage<br/>keep-mounted]
+  Outlet --> HD[HistoryDetailPage<br/>按路由 mount/unmount]
+  G --> SW[SubmissionWorkspace<br/>不动]
+  H --> HCard[HistoryCard grid]
+  HCard --> Pool[usePlayUrlPool<br/>6 路并发]
+  C --> CCard[CharacterCard grid]
+  C --> CForm[CharacterCreateForm<br/>/characters/new 时渲染]
+  HD --> HDetail[HistoryDetail 抽出复用]
+  Pool -->|GET play_url| API[backend API]
+  HCard -->|play_url 拿到后| Video["&lt;video preload=metadata&gt;<br/>currentTime=0.1 取首帧"]
+</pre>
+
+<h2>路由表</h2>
+<table>
+  <thead><tr><th>path</th><th>页面</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td><code>/</code></td><td>—</td><td>redirect → <code>/generate</code></td></tr>
+    <tr><td><code>/generate</code></td><td>GeneratePage</td><td>默认入口；keep-mounted</td></tr>
+    <tr><td><code>/history</code></td><td>HistoryPage</td><td>grid 列表；keep-mounted</td></tr>
+    <tr><td><code>/history/:id</code></td><td>HistoryDetailPage</td><td>独立详情页；按路由 mount/unmount</td></tr>
+    <tr><td><code>/characters</code></td><td>CharactersPage</td><td>grid 列表；keep-mounted</td></tr>
+    <tr><td><code>/characters/new</code></td><td>CharactersPage</td><td>同 page，内部根据 pathname 切到创建表单态</td></tr>
+    <tr><td><code>*</code></td><td>—</td><td>兜底 → <code>/generate</code></td></tr>
+  </tbody>
+</table>
+
+<h2>模块变更</h2>
+
+<h3>新增</h3>
+<div class="module-grid">
+  <div class="card new"><h3>AppShell <span class="tag new">新增</span></h3><p>sidebar + main outlet 两列 grid；常驻三个 page 并按 pathname 切换 display</p></div>
+  <div class="card new"><h3>Sidebar <span class="tag new">新增</span></h3><p>窄态 64–80px；logo + 3 个 NavLink（icon + 下方 label）；选中态左侧 2px 冷蓝竖线</p></div>
+  <div class="card new"><h3>PageHeader <span class="tag new">新增</span></h3><p>主区顶部 header，左侧标题，右侧留空</p></div>
+  <div class="card new"><h3>pages/GeneratePage <span class="tag new">新增</span></h3><p>包装现有 SubmissionWorkspace，外套 PageHeader</p></div>
+  <div class="card new"><h3>pages/HistoryPage <span class="tag new">新增</span></h3><p>grid 列表 + HistoryCard；auto-fill minmax(280,1fr)</p></div>
+  <div class="card new"><h3>pages/HistoryDetailPage <span class="tag new">新增</span></h3><p>独立详情页，useParams 取 id，复用 HistoryDetail</p></div>
+  <div class="card new"><h3>pages/CharactersPage <span class="tag new">新增</span></h3><p>grid + 占位卡；/characters/new 时内嵌创建表单面板</p></div>
+  <div class="card new"><h3>components/history/HistoryCard <span class="tag new">新增</span></h3><p>满铺首帧 + 底部渐变叠层 + title + 相对时间</p></div>
+  <div class="card new"><h3>hooks/usePlayUrlPool <span class="tag new">新增</span></h3><p>play_url 批量取；最多 6 并发；1 小时 URL 复用</p></div>
+</div>
+
+<h3>迁移改造</h3>
+<div class="module-grid">
+  <div class="card modified"><h3>CharacterCard <span class="tag modified">改造</span></h3><p>从 CharacterDrawer 平提；样式改为满铺 grid 卡；展开改为原位 <code>grid-row: span 2</code></p></div>
+  <div class="card modified"><h3>NewCharacterCard <span class="tag modified">改造</span></h3><p>平提；点击改为 navigate('/characters/new')</p></div>
+  <div class="card modified"><h3>CharacterCreateForm <span class="tag modified">改造</span></h3><p>平提；提交/取消后 navigate('/characters')</p></div>
+  <div class="card modified"><h3>HistoryDetail <span class="tag modified">改造</span></h3><p>从 HistoryDrawer 内部抽出为独立组件</p></div>
+  <div class="card modified"><h3>App.tsx <span class="tag modified">改造</span></h3><p>接入 BrowserRouter；根节点渲染 AppShell</p></div>
+</div>
+
+<h3>沿用（不动）</h3>
+<div class="module-grid">
+  <div class="card kept"><h3>SubmissionWorkspace / PromptInput / ProgressPanel / VideoPlayer <span class="tag kept">沿用</span></h3><p>内部逻辑一律不动</p></div>
+  <div class="card kept"><h3>api/hooks & api/client <span class="tag kept">沿用</span></h3><p>不改</p></div>
+  <div class="card kept"><h3>storage/historyDb & charactersDb <span class="tag kept">沿用</span></h3><p>DB_VERSION / schema 不动</p></div>
+  <div class="card kept"><h3>后端全部 <span class="tag kept">沿用</span></h3><p>零改动</p></div>
+</div>
+
+<h3>删除</h3>
+<div class="module-grid">
+  <div class="card removed"><h3>components/HistoryDrawer/ <span class="tag removed">删除</span></h3><p>容器组件与列宽塌缩开关整体去除</p></div>
+  <div class="card removed"><h3>components/CharacterDrawer/ <span class="tag removed">删除</span></h3><p>fixed 浮层 + 两态切换外壳；子组件迁走后删目录</p></div>
+  <div class="card removed"><h3>openDrawer 状态机 <span class="tag removed">删除</span></h3><p><code>openDrawer: 'none' | 'history' | 'characters'</code> 及其触发按钮</p></div>
+</div>
+
+<h2>关键决策</h2>
+<ul>
+  <li><strong>选 react-router-dom v6 不选自建 history hook</strong>：嵌套路由 + <code>:id</code> 参数提取零成本；PROJECT.md "前端 HTTP 不引第三方" 的节制原则针对 fetch，不覆盖路由领域</li>
+  <li><strong>三页全部 keep-mounted，用 CSS display 切换</strong>：既满足"切回 Generate 进度不丢"验收，又不违反"内部组件逻辑不动"。不选 Context 外提任务状态的原因就是那会重写 SubmissionWorkspace</li>
+  <li><strong>首帧缩略图走 <code>&lt;video preload=metadata&gt;</code> + <code>currentTime=0.1</code></strong>：不动后端、不动 IDB schema；用 canvas 存 Blob 要 DB_VERSION+1 与需求"只动 UI 骨架"冲突</li>
+  <li><strong>play_url 并发限流 6</strong>：避免 burst 拉爆 UFile 预签接口；MVP 历史量级下可见卡等待时间可忽略</li>
+  <li><strong><code>/characters/new</code> 与 <code>/characters</code> 共用 CharactersPage</strong>：需求是"主区切换为创建表单态"而非独立页；共用避免 grid ↔ form 切换时 unmount/mount 抖动</li>
+  <li><strong>Character 卡原位纵向抽高</strong>：minimal-refined 基调要求布局安静；满行展开带来的整屏重排视觉噪音大</li>
+</ul>
+
+<h2>留到执行时</h2>
+<ul>
+  <li>Sidebar 图标选型（Generate / History / Characters 三个 icon 的具体形状与来源库）</li>
+  <li>Sidebar 宽度在 64–80 px 区间的具体取值、卡片 radius / gap / 渐变叠层高度与透明度、展开卡动画参数</li>
+  <li>返回 History 列表的交互形态（面包屑 vs 返回按钮 vs 两者）</li>
+  <li><code>/characters/new</code> 下 CharactersPage 的表单与 grid 的具体布局关系</li>
+</ul>
+
+<h2>视觉契约</h2>
+<blockquote>沿用 <code>.cadence/PROJECT.md</code> 的视觉契约（minimal-refined / 浅色 / 冷色系 / accent <code>#1d4ed8</code> / IBM Plex Sans）。</blockquote>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true });
+</script>
+</body>
+</html>

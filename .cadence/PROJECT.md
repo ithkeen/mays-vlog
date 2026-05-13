@@ -16,9 +16,12 @@
 | 包构建 | setuptools (pyproject.toml) | `pip install -e "backend[dev]"` |
 | 前端框架 | React + TypeScript | React 18.3 |
 | 前端构建 | Vite | 5.x |
+| 前端路由 | react-router-dom | v6（一级路由 + 路径参数） |
 | 前端 HTTP | 原生 `fetch` | 不引第三方 |
 | 前端持久化 | IndexedDB（`idb` v8 + DBSchema） | 多 store：`history` 索引（仅元数据）+ `characters` 资料（含参考图 Blob） |
 | 样式方案 | CSS Modules + `:root` design tokens | 字体 IBM Plex Sans，accent 冷蓝 `#1d4ed8` |
+| 后端测试 | pytest + pytest-asyncio | 运行命令 `pytest`（`backend/tests/`） |
+| 前端测试 | 暂无测试基础设施 | 后续 cycle 如需测试再单独决策落 PROJECT.md |
 
 ## 模块地图
 
@@ -94,6 +97,7 @@ graph TD
 - **设计 token 走 CSS Modules + `:root` 变量**：组件不写裸色值/裸字号，统一引用 token；详见前端 components README。
 - **请求体上限统一 16 MiB**：FastAPI 中间件层放开，覆盖 10 MB 图片 base64 后膨胀。
 - **顶层导航走 react-router-dom 一级路由 + sidebar keep-mounted**：Generate / History / Characters 三 page 在 AppShell 中常驻挂载，由 `display:none + aria-hidden + tabIndex=-1 + pointer-events:none` 控制可见性；`/history/:id` 详情页正常 mount/unmount；进度可见性仅在 GeneratePage 内 ProgressPanel 出现，不在 sidebar / PageHeader / 其他页面以全局形式重复。
+- **History 卡首帧走 `<video preload="metadata">` 现取，不缓存字节**：通过 `usePlayUrlPool` 限流取 `play_url`（并发上限 6 + 1 小时 TTL），不引入 canvas 生成缩略图 Blob、不改 IDB schema。
 
 ## 关键决策
 
@@ -108,8 +112,10 @@ graph TD
 - **IDB 数据库名沿用 `video-mvp` 不改名**：项目名可演化，但 DB 名一旦改动会让浏览器把现有数据库视为孤儿、丢历史；改名等价于"清库重来"，无升级路径。
 - **Character 参考图存 Blob 不存 base64**：IDB 原生支持 Blob，无 ~33% 序列化膨胀；渲染走 `URL.createObjectURL` 在组件本身 `useEffect` cleanup 中 `revokeObjectURL`，不在容器层维护 URL 引用表（避免双 revoke 与所有权混乱）。
 - **唯一性约束 IDB 索引 + 应用层预查重双保险**：`characters.by_name_key` 索引 `unique: true` 作为兜底；`createCharacter` 先在 readwrite 事务内查重后写入，事务级别保证并发原子性。
-- **History / Characters 改走 react-router 一级路由 + Sidebar keep-mounted**：上一 cycle 的左列 history 抽屉 + character 浮层模型整体废弃；现状是 AppShell 两列 grid（窄态 Sidebar + 主区），三个一级 page 同时常驻挂载，URL 决定哪个可见。详情页 `/history/:id` 走独立 Route 正常 mount/unmount。
-- **创建表单走"路由切到 /characters/new" + 删除二次确认走"卡内内联变态"**：贴合"不弹 modal、不跳页（指不跳出本 SPA）"的视觉契约；`/characters/new` 在 CharactersPage 自身内部 grid 下方渲染 formPanel；删除二次确认在 CharacterCard 本体内自管，父级不感知细节。
+- **顶层导航选 `react-router-dom` v6 不自建 history hook**：成熟度 + 嵌套路由 + `/history/:id` 参数提取零成本；"前端 HTTP 不引第三方"的节制针对 fetch 不针对路由；5 条 path + 详情页动态参数写自建 hook 节省不了多少。
+- **三页 keep-mounted 不外提任务状态到 Context**：需求约束"内部组件逻辑不改动"；外提任务状态等于重写 SubmissionWorkspace，越界；`display:none` 切可见性能保住 GeneratePage 内的轮询 hook 与进度，跨页切换不打断当前任务。
+- **创建表单走 `/characters/new` 同 page 内嵌 + 删除二次确认卡内自管**：贴合"不弹 modal、不跳页（指不跳出本 SPA）"的视觉契约；`/characters/new` 在 CharactersPage 自身内部 grid 下方渲染 formPanel；删除二次确认在 CharacterCard 本体内自管，父级不感知细节。
+- **History 卡片首帧不存 IDB**：选 `<video preload="metadata">` + `currentTime=0.1` 取帧而非 canvas 转 Blob 存 IDB；后者要 `DB_VERSION+1` + upgrade + 改 history record 字段，越过"不动 DB schema"边界。
 
 ## 已知限制 / 坑
 
@@ -122,6 +128,8 @@ graph TD
 - **CORS 白名单仅 `http://localhost:5173`**：换端口或换源需要改 backend 配置。
 - **Character 编辑能力缺失**：当前只交付增 / 查 / 删；改名 / 换图 / 改描述都不支持，要改只能删了重建。
 - **Character 库未接入生成流程**：尚未在 prompt 生成里"选角色一起生成"；该接入留给后续 cycle。
+- **History 卡首帧依赖 play_url 可用**：若 `play_url` 取失败 / 视频 metadata 加载失败，卡片背景退化为纯色占位；不预生成本地缩略图。
+- **跨页无全局进度提示**：在 History / Characters 页看不到 Generate 页正在跑的任务进度，必须切回 Generate；这是有意取舍（sidebar 不挂 badge / 不挂全局状态栏）。
 
 ## 视觉契约
 
