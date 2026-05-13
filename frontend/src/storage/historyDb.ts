@@ -13,6 +13,10 @@
  *
  * 时间单位：后端是 unix 秒（snake_case），本地是 unix 毫秒（camelCase），
  * mergeFromBackend 内部做 ×1000 换算。
+ *
+ * 数据库 schema：本文件持有共享 `video-mvp` 数据库的 schema 定义。除 `history`
+ * store 外，还包含 Character 库的 `characters` store（详见 `charactersDb.ts`）。
+ * `onUpgradeNeeded` 按 `oldVersion` 分级处理，保证已存在的 store / 数据不被重建。
  */
 
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
@@ -48,27 +52,63 @@ export type ApiHistoryItem = {
   finished_at: number
 }
 
-interface HistoryDbSchema extends DBSchema {
+/** Character 库实体；schema 与 `charactersDb.ts` 的 `Character` 类型对齐。 */
+export type CharacterRecord = {
+  id: string
+  name: string
+  nameKey: string
+  instructions?: string
+  image: Blob
+  createdAt: number
+}
+
+export interface AppDbSchema extends DBSchema {
   history: {
     key: string
     value: HistoryItem
     indexes: { finishedAt: number }
   }
+  characters: {
+    key: string
+    value: CharacterRecord
+    indexes: {
+      by_created_at: number
+      by_name_key: string
+    }
+  }
 }
 
 const DB_NAME = 'video-mvp'
-const DB_VERSION = 1
+/** 当前 schema 版本；上轮 cycle 历史索引为 v1，本轮新增 characters store 升至 v2。 */
+const DB_VERSION = 2
 const STORE_NAME = 'history'
 const INDEX_NAME = 'finishedAt'
 
-let dbPromise: Promise<IDBPDatabase<HistoryDbSchema>> | null = null
+let dbPromise: Promise<IDBPDatabase<AppDbSchema>> | null = null
 
-function getDb(): Promise<IDBPDatabase<HistoryDbSchema>> {
+/**
+ * 打开共享 DB（history + characters）。
+ *
+ * 升级流按 `oldVersion` 分级：
+ *   - v0 → v1：建 `history` store + `finishedAt` 索引（保留首次安装路径）
+ *   - v1 → v2：建 `characters` store + `by_created_at` / `by_name_key`（unique）索引
+ *
+ * 因 `createObjectStore` 不影响其他 store 的既有数据，从 v1 升 v2 时 `history`
+ * 数据原样保留；从 v0 直装到 v2 时按顺序走完两个分支。
+ */
+function getDb(): Promise<IDBPDatabase<AppDbSchema>> {
   if (!dbPromise) {
-    dbPromise = openDB<HistoryDbSchema>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
-        store.createIndex(INDEX_NAME, 'finishedAt')
+    dbPromise = openDB<AppDbSchema>(DB_NAME, DB_VERSION, {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
+          const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
+          store.createIndex(INDEX_NAME, 'finishedAt')
+        }
+        if (oldVersion < 2) {
+          const store = db.createObjectStore('characters', { keyPath: 'id' })
+          store.createIndex('by_created_at', 'createdAt')
+          store.createIndex('by_name_key', 'nameKey', { unique: true })
+        }
       },
     })
   }

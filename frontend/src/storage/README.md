@@ -7,6 +7,7 @@
 - 缓存历史索引：后端 `GET /api/tasks` 列表的本地副本，供 UI 离线渲染 / 首屏即出列表。
 - 缓存首帧图：`hasImage=true` 时同步存 raw base64 + MIME 类型，供「历史详情」回看首帧图（后端**不**存图字节）。
 - 与后端列表合并：三分支策略（详见下文 `mergeFromBackend`）。
+- 持有 Character 库的 `characters` object store schema 定义（store 操作由后续 `charactersDb.ts` 实现）。
 
 **不**做的事：
 - 不缓存视频字节（始终走后端按需签发的 play_url）。
@@ -15,17 +16,43 @@
 
 ## 模块文件
 
-- `historyDb.ts`：IndexedDB 封装（基于 `idb` 库），暴露 store 操作 + 合并函数。
+- `historyDb.ts`：IndexedDB 封装（基于 `idb` 库）。持有共享 `AppDbSchema` 类型与 `onUpgradeNeeded` 分级升级逻辑；暴露 history 的 store 操作 + 合并函数。
 
 ## IndexedDB schema
 
-- 数据库名：`video-mvp`
-- 版本：`1`
-- object store：`history`
-  - 主键 keyPath：`id`（string，后端 task UUID）
-  - 索引 `finishedAt`（number，unix ms）：用于按完成时间倒序拉取全部
+- 数据库名：`video-mvp`（沿用，不改名以保证既有 history 数据不丢）
+- 版本：`2`
+- object store：
+  - `history`
+    - 主键 keyPath：`id`（string，后端 task UUID）
+    - 索引 `finishedAt`（number，unix ms）：用于按完成时间倒序拉取全部
+  - `characters`（v2 新增；属于 Character 库 cycle）
+    - 主键 keyPath：`id`（string，UUID）
+    - 索引 `by_created_at` on `createdAt`（number，epoch ms）：列表按创建时间倒序
+    - 索引 `by_name_key` on `nameKey`（string，**unique**）：角色名查重键，存 `name.trim().toLowerCase()`
 
-### value 结构
+### `characters` value 结构（`CharacterRecord`）
+
+```ts
+type CharacterRecord = {
+  id: string
+  name: string                 // 展示名，保留原大小写
+  nameKey: string              // name.trim().toLowerCase()，唯一索引键
+  instructions?: string        // 自由文本
+  image: Blob                  // 参考图本体（image/png|jpeg|webp）
+  createdAt: number            // epoch ms
+}
+```
+
+### 升级流（`onUpgradeNeeded`）
+
+按 `oldVersion` 分级，不重建已存在的 store / 数据：
+- `oldVersion < 1`：建 `history` store + `finishedAt` 索引
+- `oldVersion < 2`：建 `characters` store + `by_created_at` / `by_name_key`（unique）索引
+
+老用户从 v1 升 v2 时，`history` 既有数据不动；新用户从 v0 直装 v2 时按顺序走完两个分支。
+
+### `history` value 结构（`HistoryItem`）
 
 ```ts
 type HistoryItem = {
