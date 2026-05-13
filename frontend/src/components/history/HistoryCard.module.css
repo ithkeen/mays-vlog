@@ -1,0 +1,102 @@
+/*
+ * HistoryCard 局部样式。
+ * 视觉契约：minimal-refined / 浅色 / 冷色系 / 单一 accent。
+ * 卡 = 16/9 媒体满铺 + 底部线性渐变叠层 + 文字浮于渐变上。
+ */
+
+.card {
+  appearance: none;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    transform var(--motion-fast) var(--easing-standard),
+    border-color var(--motion-fast) var(--easing-standard),
+    box-shadow var(--motion-fast) var(--easing-standard);
+  box-shadow: var(--shadow-sm);
+}
+
+.card:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.card:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-color: var(--color-accent);
+}
+
+.media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--color-surface-muted);
+  overflow: hidden;
+}
+
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #000;
+}
+
+.fallback {
+  position: absolute;
+  inset: 0;
+  background: var(--color-surface-muted);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(15, 23, 42, 0) 55%,
+    rgba(15, 23, 42, 0.55) 100%
+  );
+  pointer-events: none;
+}
+
+.text {
+  position: absolute;
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: #ffffff;
+  pointer-events: none;
+}
+
+.title {
+  font-size: var(--font-size-md);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: var(--line-height-tight);
+  /* 单行截断，保证 grid 卡视觉对齐 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.time {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
