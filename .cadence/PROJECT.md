@@ -1,6 +1,6 @@
 # 项目档案
 
-> 网页版 AI 视频生成 MVP —— 单个个人创作者本机自用的浏览器应用：输入 prompt（可选首帧图）调用 UCloud ModelVerse 生成视频，成功结果转存 UFile 并在本浏览器内做历史菜单。
+> 网页版 AI 视频生成 MVP —— 单个个人创作者本机自用的浏览器应用：输入 prompt（可选首帧图）调用 UCloud ModelVerse 生成视频，成功结果转存 UFile 并在本浏览器内做历史菜单；同浏览器内沉淀可复用的 Character 角色资料库（参考图 + Name + Instructions）。
 
 ## 技术栈
 
@@ -17,7 +17,7 @@
 | 前端框架 | React + TypeScript | React 18.3 |
 | 前端构建 | Vite | 5.x |
 | 前端 HTTP | 原生 `fetch` | 不引第三方 |
-| 前端持久化 | IndexedDB（`idb` v8 + DBSchema） | 仅存历史索引，不存视频字节 |
+| 前端持久化 | IndexedDB（`idb` v8 + DBSchema） | 多 store：`history` 索引（仅元数据）+ `characters` 资料（含参考图 Blob） |
 | 样式方案 | CSS Modules + `:root` design tokens | 字体 IBM Plex Sans，accent 冷蓝 `#1d4ed8` |
 
 ## 模块地图
@@ -26,12 +26,19 @@
 graph TD
   subgraph frontend
     UI[components/*]
+    sub[components/SubmissionWorkspace + PromptInput + ProgressPanel + VideoPlayer]
+    hist[components/HistoryDrawer + HistoryDetail]
+    chardrawer[components/CharacterDrawer/*]
     apihook[api/hooks.ts]
     apiclient[api/client.ts]
-    idb[storage/historyDb.ts]
+    histDb[storage/historyDb.ts]
+    charDb[storage/charactersDb.ts]
     UI --> apihook
     apihook --> apiclient
-    UI --> idb
+    sub --> histDb
+    hist --> histDb
+    chardrawer --> charDb
+    charDb --> histDb
   end
   subgraph backend
     router[api/tasks.py]
@@ -58,18 +65,23 @@ graph TD
 | `backend/app/storage/` | SQLite 初始化与 tasks 表 CRUD | [backend/app/storage/README.md](backend/app/storage/README.md) |
 | `frontend/` | React SPA 根，Vite 配置 | [frontend/README.md](frontend/README.md) |
 | `frontend/src/api/` | 后端 API 客户端 + 5 秒轮询 hook | [frontend/src/api/README.md](frontend/src/api/README.md) |
-| `frontend/src/storage/` | IndexedDB 历史索引读写 | [frontend/src/storage/README.md](frontend/src/storage/README.md) |
+| `frontend/src/storage/` | IndexedDB 入口（`historyDb.ts` 持有 DB schema + upgrade 流；`charactersDb.ts` 暴露角色 CRUD + `useCharacters` hook） | [frontend/src/storage/README.md](frontend/src/storage/README.md) |
 | `frontend/src/components/` | UI 组件（SubmissionWorkspace / PromptInput / ProgressPanel / VideoPlayer / HistoryDrawer / HistoryDetail） | [frontend/src/components/README.md](frontend/src/components/README.md) |
+| `frontend/src/components/CharacterDrawer/` | 浏览器本地 Character 库 UI（抽屉容器 + 列表/创建两态 + 占位卡 + 创建表单 + 展示卡） | [frontend/src/components/CharacterDrawer/README.md](frontend/src/components/CharacterDrawer/README.md) |
 | `scripts/` | 联调启动脚本 `dev.sh`（同时拉起前后端） | — |
 
 ## 代码约定
 
-- **前后端字段命名统一 snake_case**：API client 不在前端把 `created_at` / `play_url` 改写为 camelCase，所有跨边界字段保留后端形态。
+- **前后端跨边界字段统一 snake_case**：API client 不在前端把 `created_at` / `play_url` 改写为 camelCase，所有跨边界字段保留后端形态。
+- **纯前端实体用 camelCase**：不跨后端边界的前端本地实体（如 IDB `characters` store 的 `createdAt` / `nameKey`）使用 camelCase；这条与上一条配套，按"是否跨边界"区分。
 - **失败任务后端留行、前端不入历史**：SQLite `tasks` 表保留 `status=failure` 行用于排查；`GET /api/tasks` 与 IndexedDB 都只看 `success`。
 - **视频本体只在 UFile**：前端 IndexedDB 仅存 `id / prompt / hasImage / title / createdAt / finishedAt` 索引；播放与下载每次新调 `GET /api/tasks/{id}/play_url` 取 1 小时预签名 URL，不缓存视频字节。
+- **前端 IDB 多 store 单一入口**：`DB_NAME` / `DB_VERSION` / `upgrade` 真相源只在 `frontend/src/storage/historyDb.ts`；新增 store 模块通过 `import { getDb } from './historyDb'` 复用入口，禁止复刻 upgrade 回调。新增 store 时 `DB_VERSION` 在原值上 `+1`，`onUpgradeNeeded` 用 `oldVersion < N` 分级，只在更高版本分支创建新 store，不重建已有 store。
+- **IDB Schema 类型集中**：`AppDbSchema`（含所有 store 的字段、索引类型）与各 store 的 record 类型统一从 `historyDb.ts` 导出，避免多文件双写类型漂移。
 - **单任务串行用进程内 in-flight 锁**：第二个并发 POST 直接 409 `task_in_progress`；这是有意的简化，不支持多进程部署。
 - **设计 token 走 CSS Modules + `:root` 变量**：组件不写裸色值/裸字号，统一引用 token；详见前端 components README。
 - **请求体上限统一 16 MiB**：FastAPI 中间件层放开，覆盖 10 MB 图片 base64 后膨胀。
+- **抽屉互斥用单值 `openDrawer` 状态**：父级用 `openDrawer: 'none' | 'history' | 'characters' | ...` 单值状态协调多抽屉，避免多个独立 boolean 互不知道；任何新增侧抽屉沿用此模型。
 
 ## 关键决策
 
@@ -81,16 +93,25 @@ graph TD
 - **FastAPI BackgroundTasks 不用 Celery**：MVP 单进程、单任务串行，BackgroundTasks 足够；重启丢 in-flight 任务被显式接受。
 - **IndexedDB 索引 + 5 秒轻量 `getAll` 轮询**：刷新即可见，多窗口下也能跟上后端权威源；不为 MVP 引入 SSE。
 - **`scripts/dev.sh` 用 `npm run dev` 不 `exec`**：`exec` 会替换 bash 进程使 trap 失效，无法在前端退出后自动清理后端 nohup 进程。
+- **IDB 数据库名沿用 `video-mvp` 不改名**：项目名可演化，但 DB 名一旦改动会让浏览器把现有数据库视为孤儿、丢历史；改名等价于"清库重来"，无升级路径。
+- **Character 参考图存 Blob 不存 base64**：IDB 原生支持 Blob，无 ~33% 序列化膨胀；渲染走 `URL.createObjectURL` 在组件本身 `useEffect` cleanup 中 `revokeObjectURL`，不在容器层维护 URL 引用表（避免双 revoke 与所有权混乱）。
+- **唯一性约束 IDB 索引 + 应用层预查重双保险**：`characters.by_name_key` 索引 `unique: true` 作为兜底；`createCharacter` 先在 readwrite 事务内查重后写入，事务级别保证并发原子性。
+- **HistoryDrawer 常驻 grid 左列 + CharacterDrawer fixed 浮层并存**：HistoryDrawer 是布局常驻组件，"关闭"语义为 `grid-template-columns` 把左列宽塌缩到 0 + `aria-hidden` + `pointer-events: none`；CharacterDrawer 是 `position: fixed` 从左滑入的浮层。两者由父级单值 `openDrawer` 协调，互不感知。
+- **创建表单走"抽屉两态切换" + 删除二次确认走"卡内内联变态"**：贴合"不弹 modal、不跳页"的视觉契约；状态在 CharacterDrawer 本体 / CharacterCard 本体内自管，父级不感知细节。
 
 ## 已知限制 / 坑
 
 - **进程内 in-flight 锁不支持多进程**：若部署到多 worker，并发=1 的强约束会被打破。
 - **后端重启会把 `running` 行直接标记为 `failure(interrupted_by_restart)`**：MVP 不做断点续轮询；用户感知为该次任务失败。
-- **历史绑定单一浏览器**：清缓存 / 换设备 / 换浏览器都会丢失 IndexedDB 索引；MVP 不做跨设备同步。
+- **历史与 Character 库都绑定单一浏览器**：清缓存 / 换设备 / 换浏览器都会丢失 IndexedDB 数据；MVP 不做跨设备同步。
 - **仅桌面端浏览器**：不做移动 / 平板适配，也不做暗色模式 / 多语言。
 - **UFile 预签名 URL 1 小时硬编码**：若 US3 region 不允许 3600s，需要调短；UFile bucket 必须手动在控制台配 CORS（GET/HEAD + Range，暴露 `Content-Length` / `Content-Range` / `Accept-Ranges`），否则 `<video>` seek 会断。
 - **任务硬超时 5 分钟**：超时即判 failure，不延长不重试；实际 P95 视模型负载浮动。
 - **CORS 白名单仅 `http://localhost:5173`**：换端口或换源需要改 backend 配置。
+- **关闭态 HistoryDrawer 仍持续挂载与轮询**：HistoryDrawer 在 `openDrawer !== 'history'` 时不 unmount（用列宽塌缩 + pointer-events:none 模拟关闭），内部 5 秒 IDB 轮询和相对时间 timer 继续运行；这是有意的取舍——避免再次打开时的列表闪烁与重新 merge 成本。
+- **CharacterDrawer 关闭态子树仍可 Tab 进入**：关闭态仅设 `aria-hidden` + `tabIndex=-1`（只作用于 aside 本身，不阻止 Tab 进入内部 focusable 子树），未使用 `inert`；MVP 单用户场景可接受。
+- **Character 编辑能力缺失**：当前 cycle 只交付增 / 查 / 删；改名 / 换图 / 改描述都不支持，要改只能删了重建。
+- **Character 库未接入生成流程**：本轮 cycle 不在 prompt 生成里"选角色一起生成"；该接入留给后续 cycle。
 
 ## 视觉契约
 

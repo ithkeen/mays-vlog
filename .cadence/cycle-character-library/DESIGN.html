@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Character 库 技术方案</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; max-width: 980px; margin: 40px auto; padding: 0 24px; color: #222; line-height: 1.7; background: #fafbfc; }
+  h1 { border-bottom: 2px solid #1d4ed8; padding-bottom: 8px; color: #111; }
+  h2 { margin-top: 40px; color: #1d4ed8; }
+  h3 { margin-top: 24px; }
+  .lede { background: #eff6ff; border-left: 4px solid #1d4ed8; padding: 14px 18px; border-radius: 4px; margin: 16px 0; }
+  .module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 16px 0; }
+  .card { padding: 14px 18px; border-radius: 8px; border: 1px solid #ddd; background: #fff; }
+  .card.new { border-color: #4caf50; background: #f4fbf4; }
+  .card.modified { border-color: #ff9800; background: #fff7e6; }
+  .card.kept { border-color: #999; background: #f5f5f5; }
+  .card h3 { margin: 0 0 6px 0; font-size: 0.98em; }
+  .card .path { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.78em; color: #555; word-break: break-all; }
+  .card p { margin: 8px 0 0; font-size: 0.92em; color: #333; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.72em; margin-left: 6px; vertical-align: middle; }
+  .tag.new { background: #4caf50; color: white; }
+  .tag.modified { background: #ff9800; color: white; }
+  .tag.kept { background: #999; color: white; }
+  .decisions li { margin-bottom: 10px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; background: #fff; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; vertical-align: top; font-size: 0.92em; }
+  th { background: #f1f5f9; }
+  code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.88em; }
+  pre.mermaid { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+  .scope-banner { display: flex; gap: 12px; margin: 16px 0; }
+  .scope-box { flex: 1; padding: 14px 18px; border-radius: 8px; border: 1px solid; }
+  .scope-box.yes { border-color: #4caf50; background: #f4fbf4; }
+  .scope-box.no { border-color: #e57373; background: #fef5f5; }
+  .scope-box h4 { margin: 0 0 6px 0; font-size: 0.95em; }
+  .scope-box ul { margin: 4px 0 0 18px; padding: 0; font-size: 0.9em; }
+  .flow-step { padding: 10px 14px; border-left: 3px solid #1d4ed8; background: #fff; margin: 6px 0; border-radius: 0 6px 6px 0; }
+  .visual-contract { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 14px 18px; }
+</style>
+</head>
+<body>
+
+<h1>Character 库 技术方案</h1>
+
+<div class="lede">
+  本轮 cycle 在现有 mays-vlog 前端工程内增量交付一个 <strong>纯前端</strong> 的角色资料库：复用现有 IndexedDB 数据库新增 <code>characters</code> store，参考图以 <strong>Blob</strong> 形式存进 IDB；新增独立的 <code>CharacterDrawer</code>，从 header 右上按钮触发，与现有 <code>HistoryDrawer</code> <strong>同侧互斥</strong>。后端 0 改动，现有 prompt 生成流不变。
+</div>
+
+<h2>本轮范围</h2>
+<div class="scope-banner">
+  <div class="scope-box yes">
+    <h4>✅ 做</h4>
+    <ul>
+      <li>前端新增 Character 库（IDB + 抽屉 + 卡片网格）</li>
+      <li>创建（图片 + Name + Instructions）/ 查看 / 删除</li>
+      <li>Name trim+大小写不敏感 唯一性校验</li>
+      <li>抽屉两态：列表 ↔ 创建表单</li>
+      <li>抽屉与 HistoryDrawer 同侧互斥</li>
+    </ul>
+  </div>
+  <div class="scope-box no">
+    <h4>❌ 不做</h4>
+    <ul>
+      <li>不动后端，0 个新 API</li>
+      <li>不接入生成流程（留下一轮 cycle）</li>
+      <li>不做编辑（改名/换图/改描述都靠删了重建）</li>
+      <li>不弹 modal、不跳页</li>
+      <li>不做搜索 / 标签 / 多参考图 / 同步</li>
+    </ul>
+  </div>
+</div>
+
+<h2>架构图</h2>
+<pre class="mermaid">
+graph TD
+  Header[Header 入口<br/>History 按钮 · Characters 按钮] -->|setOpenDrawer| Coord[父组件<br/>openDrawer state]
+  Coord -->|'history'| HD[HistoryDrawer<br/>已有 · 不动]
+  Coord -->|'characters'| CD[CharacterDrawer<br/>新增]
+
+  CD --> List[列表态<br/>卡片网格 + 新建占位卡]
+  CD --> Form[创建表单态<br/>图片 + Name + Instructions]
+  List --> Card[CharacterCard<br/>展开/折叠 + 删除内联]
+
+  List -->|listCharacters| DB
+  Form -->|createCharacter| DB
+  Card -->|deleteCharacter| DB
+
+  DB[charactersDb.ts<br/>新增] --> IDB[(IndexedDB<br/>mays-vlog DB<br/>+ characters store)]
+  HD --> HistDB[historyDb.ts<br/>修改: bump version]
+  HistDB --> IDB
+
+  style CD fill:#f4fbf4,stroke:#4caf50
+  style List fill:#f4fbf4,stroke:#4caf50
+  style Form fill:#f4fbf4,stroke:#4caf50
+  style Card fill:#f4fbf4,stroke:#4caf50
+  style DB fill:#f4fbf4,stroke:#4caf50
+  style HistDB fill:#fff7e6,stroke:#ff9800
+  style Coord fill:#fff7e6,stroke:#ff9800
+  style Header fill:#fff7e6,stroke:#ff9800
+  style HD fill:#f5f5f5,stroke:#999
+</pre>
+
+<h2>模块</h2>
+<div class="module-grid">
+  <div class="card new">
+    <h3>charactersDb <span class="tag new">新增</span></h3>
+    <div class="path">frontend/src/storage/charactersDb.ts</div>
+    <p>IDB <code>characters</code> store 的 CRUD + 唯一性校验；暴露 <code>listCharacters</code> / <code>createCharacter</code> / <code>deleteCharacter</code>。</p>
+  </div>
+  <div class="card new">
+    <h3>useCharacters hook <span class="tag new">新增</span></h3>
+    <div class="path">独立文件 或 并入 charactersDb.ts（看 history 惯例）</div>
+    <p>抽屉打开时读列表；create/delete 后乐观刷新。</p>
+  </div>
+  <div class="card modified">
+    <h3>IDB schema 持有者 <span class="tag modified">修改</span></h3>
+    <div class="path">frontend/src/storage/historyDb.ts</div>
+    <p>DB version <strong>+1</strong>；<code>onUpgradeNeeded</code> 中创建 <code>characters</code> store 与索引。</p>
+  </div>
+  <div class="card new">
+    <h3>CharacterDrawer <span class="tag new">新增</span></h3>
+    <div class="path">components/CharacterDrawer/CharacterDrawer.tsx</div>
+    <p>抽屉容器；维护「列表 / 创建表单」两态；进出动效沿用 HistoryDrawer 同款。</p>
+  </div>
+  <div class="card new">
+    <h3>CharacterCard <span class="tag new">新增</span></h3>
+    <div class="path">components/CharacterDrawer/CharacterCard.tsx</div>
+    <p>卡片展开/折叠 + 删除二次确认（卡内内联变态，不弹 modal）。</p>
+  </div>
+  <div class="card new">
+    <h3>NewCharacterCard <span class="tag new">新增</span></h3>
+    <div class="path">components/CharacterDrawer/NewCharacterCard.tsx</div>
+    <p>网格首格占位卡；点击切到创建表单态。</p>
+  </div>
+  <div class="card new">
+    <h3>CharacterCreateForm <span class="tag new">新增</span></h3>
+    <div class="path">components/CharacterDrawer/CharacterCreateForm.tsx</div>
+    <p>图片上传 + Name + Instructions + 创建 / 取消；表单内错误文案。</p>
+  </div>
+  <div class="card modified">
+    <h3>顶部入口 & 协调 <span class="tag modified">修改</span></h3>
+    <div class="path">components/SubmissionWorkspace.tsx（或现有挂 History 入口的父组件）</div>
+    <p>header 右上加 Characters 按钮；维护 <code>openDrawer: 'none' | 'history' | 'characters'</code> 单值状态实现同侧互斥。</p>
+  </div>
+  <div class="card kept">
+    <h3>后端整层 <span class="tag kept">沿用</span></h3>
+    <div class="path">backend/**/*</div>
+    <p>0 改动。无新增 API，无新增依赖。</p>
+  </div>
+</div>
+
+<h2>数据模型 · Character</h2>
+<table>
+  <thead>
+    <tr><th>字段</th><th>类型</th><th>备注</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>id</code></td><td>string</td><td><code>crypto.randomUUID()</code></td></tr>
+    <tr><td><code>name</code></td><td>string</td><td>trim 后保留原大小写存储（用于展示）</td></tr>
+    <tr><td><code>nameKey</code></td><td>string</td><td><code>name.trim().toLowerCase()</code>；唯一索引键</td></tr>
+    <tr><td><code>instructions</code></td><td>string?</td><td>可选；自由文本；不硬限长度</td></tr>
+    <tr><td><code>image</code></td><td>Blob</td><td>限 <code>image/png</code> / <code>image/jpeg</code> / <code>image/webp</code></td></tr>
+    <tr><td><code>createdAt</code></td><td>number</td><td>epoch ms</td></tr>
+  </tbody>
+</table>
+
+<h3>索引</h3>
+<ul>
+  <li><code>by_created_at</code> on <code>createdAt</code> — 倒序读列表</li>
+  <li><code>by_name_key</code> on <code>nameKey</code>（<code>unique: true</code>）— 唯一性查重</li>
+</ul>
+
+<h2>持久化层 API</h2>
+<table>
+  <thead>
+    <tr><th>函数</th><th>入参</th><th>出参 / 错误</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>listCharacters()</code></td>
+      <td>—</td>
+      <td><code>Promise&lt;Character[]&gt;</code> 按 <code>createdAt</code> 倒序</td>
+    </tr>
+    <tr>
+      <td><code>createCharacter(input)</code></td>
+      <td><code>{ name, instructions?, image: Blob }</code></td>
+      <td><code>Promise&lt;Character&gt;</code><br/>抛 <code>EmptyNameError</code> / <code>DuplicateNameError</code> / <code>InvalidImageError</code></td>
+    </tr>
+    <tr>
+      <td><code>deleteCharacter(id)</code></td>
+      <td><code>string</code></td>
+      <td><code>Promise&lt;void&gt;</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>关键流程</h2>
+
+<h3>打开抽屉</h3>
+<div class="flow-step">1. 用户点 header 右上 Characters 按钮 → 父组件设 <code>openDrawer = 'characters'</code></div>
+<div class="flow-step">2. 若先前是 <code>'history'</code>，HistoryDrawer 同帧退出</div>
+<div class="flow-step">3. CharacterDrawer 首次挂载 → <code>listCharacters()</code> → 渲染网格</div>
+<div class="flow-step">4. 默认进入「列表态」</div>
+
+<h3>创建角色</h3>
+<div class="flow-step">1. 点「新建角色」占位卡 → 抽屉切到「创建表单态」（顶部 <code>← 返回 | 新建角色</code>）</div>
+<div class="flow-step">2. 选图片：<code>&lt;input accept="image/png,image/jpeg,image/webp"&gt;</code>；提交前 MIME 二次校验；选中后 <code>&lt;img&gt;</code> 预览</div>
+<div class="flow-step">3. 填 Name（必填）+ Instructions（可选）</div>
+<div class="flow-step">4. 点「创建」 → 校验通过 → 写 IDB → 列表 prepend → 切回列表态；失败 → 表单内显示错误，不切态</div>
+<div class="flow-step">5. 点「取消」/「返回」 → 切回列表态，丢弃已选图片与输入</div>
+
+<h3>查看 / 删除角色</h3>
+<div class="flow-step">点卡片头部 → 原地内联展开看完整 Instructions；多卡可并存展开</div>
+<div class="flow-step">展开态卡内点「删除」 → 同位置变态为「确认删除 | 取消」</div>
+<div class="flow-step">「确认删除」 → <code>deleteCharacter(id)</code> → 从列表移除 → revoke 该卡用过的 object URL</div>
+<div class="flow-step">「取消」 → 回到普通展开态</div>
+
+<h2>关键决策</h2>
+<ul class="decisions">
+  <li><strong>复用 mays-vlog IDB 新增 store，不开新 DB</strong>：与 PROJECT.md <code>idb</code> 约定一致；多 store 是 idb 标准用法；未来导出/迁移更方便。</li>
+  <li><strong>图片存 Blob 不存 base64</strong>：IDB 原生支持，无 ~33% 膨胀；渲染走 <code>URL.createObjectURL</code>。</li>
+  <li><strong>CharacterDrawer 与 HistoryDrawer 同侧互斥</strong>：用统一的 <code>openDrawer</code> 单值状态实现，避免两个独立 boolean 互相不知道。</li>
+  <li><strong>创建表单走「抽屉两态切换」</strong>：贴合「不弹 modal、不跳页」；表单空间充裕，逻辑简单。</li>
+  <li><strong>删除二次确认走「卡内内联变态」</strong>：同样贴合「不弹 modal」原则。</li>
+  <li><strong>Name 唯一性 trim + toLowerCase</strong>：用户视角下「Alice」「  alice」是同一个角色；存储保留原大小写用于展示。</li>
+  <li><strong>入口按钮放 header 右上与 History 并排</strong>：所见即所得；与现有抽屉触发模式一致。</li>
+  <li><strong>不接入生成流程</strong>：留给下一轮 cycle。</li>
+</ul>
+
+<h2>留到执行时</h2>
+<table>
+  <thead><tr><th>项目</th><th>判定方式</th></tr></thead>
+  <tbody>
+    <tr><td>DB version 具体号</td><td>task-executor 读 <code>historyDb.ts</code>，本次 <code>+1</code></td></tr>
+    <tr><td>字段命名（camelCase 还是与 history 字段对齐）</td><td>本设计倾向 camelCase；task-executor 与 history 现有惯例核对后落地</td></tr>
+    <tr><td>抽屉宽度 / 卡片网格列数 / 卡片宽高比 / 内边距 / 字号</td><td>task-executor + frontend-design skill 结合视觉契约决定</td></tr>
+    <tr><td>抽屉进出动画</td><td>沿用 HistoryDrawer 同款</td></tr>
+    <tr><td>错误文案具体措辞</td><td>task-executor 决定，遵守视觉契约</td></tr>
+    <tr><td>Name / Instructions 是否设 maxLength</td><td>MVP 建议不设</td></tr>
+    <tr><td>卡片展开是否单选 vs 多展开</td><td>本设计选「多卡并存展开」；实现时若觉得拥挤可改单展开</td></tr>
+    <tr><td>header 上 Characters 入口图标 / 标签</td><td>task-executor 决定，遵守视觉契约</td></tr>
+  </tbody>
+</table>
+
+<h2>视觉契约</h2>
+<div class="visual-contract">
+  沿用 <code>.cadence/PROJECT.md</code> 的视觉契约：<strong>minimal-refined</strong> / <strong>浅色</strong> / <strong>冷色系</strong> / accent 用于主 CTA · 焦点态 · 关键状态指示 / <strong>无衬线</strong>。
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true });
+</script>
+
+</body>
+</html>

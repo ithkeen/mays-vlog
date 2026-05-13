@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Character 库 · mays-vlog</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    max-width: 920px;
+    margin: 40px auto;
+    padding: 0 24px 80px;
+    color: #1d2330;
+    line-height: 1.75;
+    background: #fbfbfd;
+  }
+  h1 {
+    border-bottom: 2px solid #1d4ed8;
+    padding-bottom: 10px;
+    color: #1d4ed8;
+  }
+  h2 {
+    margin-top: 40px;
+    border-left: 4px solid #1d4ed8;
+    padding-left: 12px;
+  }
+  .lead {
+    font-size: 1.05em;
+    background: #eef2ff;
+    border-left: 4px solid #1d4ed8;
+    padding: 14px 18px;
+    border-radius: 6px;
+  }
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 8px 16px;
+    margin: 16px 0;
+  }
+  .meta-grid dt {
+    font-weight: 600;
+    color: #475569;
+  }
+  .scope-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+  }
+  @media (max-width: 720px) {
+    .scope-grid { grid-template-columns: 1fr; }
+  }
+  .card {
+    padding: 18px 22px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    background: #fff;
+  }
+  .card.do {
+    background: #f0f9f3;
+    border-color: #4caf50;
+  }
+  .card.dont {
+    background: #fdf2f2;
+    border-color: #ef5350;
+  }
+  .card h3 {
+    margin-top: 0;
+    font-size: 1.05em;
+  }
+  ul {
+    padding-left: 22px;
+    margin: 8px 0;
+  }
+  li { margin: 4px 0; }
+  .acceptance li {
+    list-style: none;
+    padding-left: 28px;
+    position: relative;
+    margin: 8px 0;
+  }
+  .acceptance li::before {
+    content: "☐";
+    position: absolute;
+    left: 4px;
+    color: #1d4ed8;
+    font-size: 1.1em;
+  }
+  pre.mermaid {
+    background: #fff;
+    padding: 18px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    overflow-x: auto;
+  }
+  .tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    background: #1d4ed8;
+    color: #fff;
+    font-size: 0.85em;
+    margin-right: 6px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Character 库</h1>
+
+<p class="lead">
+  在 mays-vlog 里加一个<strong>本浏览器持久化的角色资料库</strong>，把你想反复用的角色（人物 / 动物 / IP）存起来，作为后续长视频生产与跨场景角色一致性管理的数据底座。本轮 cycle 只交付<strong>角色库的「增 / 查 / 删」</strong>，<strong>不接入</strong>现有的视频生成流程。
+</p>
+
+<h2>本轮交付一览</h2>
+<dl class="meta-grid">
+  <dt>目标用户</dt>
+  <dd>单个个人创作者，本机浏览器自用（与 mays-vlog 现有口径一致）</dd>
+  <dt>核心价值</dt>
+  <dd>把"角色"沉淀为可命名、可复用的本地数据，为下一轮 cycle 接入"选角色生成"打地基</dd>
+  <dt>入口位置</dt>
+  <dd>主界面新增一个<strong>侧折抽屉</strong>，独立于现有历史抽屉</dd>
+  <dt>角色字段</dt>
+  <dd>参考图（必填，仅本地上传）+ Name（必填、唯一）+ Instructions（可选自由文本）</dd>
+  <dt>数据范围</dt>
+  <dd>仅本浏览器持久化（清缓存 / 换设备 / 换浏览器会丢，与现有历史一致）</dd>
+</dl>
+
+<h2>用户旅程</h2>
+<pre class="mermaid">
+flowchart LR
+  A[主界面] --> B[打开 Character 抽屉]
+  B --> C[点击「新建角色」卡]
+  C --> D[上传图<br/>填 Name<br/>可选填 Instructions]
+  D --> E{校验}
+  E -- Name 缺失或重名 --> D
+  E -- 通过 --> F[新角色入列表]
+  B -. 浏览 .-> G[卡片网格]
+  G --> H[点击卡片内联展开]
+  H --> I[看完整 Instructions]
+  H --> J[点删除]
+  J --> K{二次确认}
+  K -- 取消 --> H
+  K -- 确认 --> L[角色被移除]
+</pre>
+
+<h2>范围</h2>
+<div class="scope-grid">
+  <div class="card do">
+    <h3>✅ 做什么</h3>
+    <ul>
+      <li>主界面新增 Character 库<strong>侧折抽屉</strong>，与历史抽屉互不干扰</li>
+      <li>抽屉内<strong>卡片网格</strong>展示全部角色（参考 Runway Characters 列表风格）</li>
+      <li>网格首格固定为<strong>「新建角色」占位卡</strong></li>
+      <li>创建：上传一张本地图 + 必填 Name + 可选 Instructions</li>
+      <li>查看：卡片<strong>原地内联展开</strong>看完整 Instructions（不弹 modal）</li>
+      <li>删除：必须<strong>二次确认</strong></li>
+      <li>列表默认按<strong>创建时间倒序</strong></li>
+      <li>数据本浏览器持久化，刷新 / 重启浏览器不丢</li>
+    </ul>
+  </div>
+  <div class="card dont">
+    <h3>❌ 不做什么</h3>
+    <ul>
+      <li>不做 <strong>Voice</strong>、不做 <strong>Knowledge base</strong>（Runway 上有，本轮明确去掉）</li>
+      <li>不做 Try examples 预设、不做 "Optimize image for quality" 选项</li>
+      <li>不做<strong>编辑</strong>（改名 / 换图 / 改描述都不支持，要改只能删了重建）</li>
+      <li>不做<strong>多参考图</strong>，一个角色仅一张主图</li>
+      <li>不做"从历史视频抽帧"作为图源</li>
+      <li>不做跨设备 / 跨浏览器同步</li>
+      <li>不设角色数量上限</li>
+      <li>不做搜索 / 标签 / 分组 / 收藏 / 置顶 / 手动排序</li>
+      <li>不做角色卡片下方的身份/职业标签</li>
+      <li><strong>不接入生成流程</strong>，"选角色一起生成"留给下一轮 cycle</li>
+    </ul>
+  </div>
+</div>
+
+<h2>验收标准</h2>
+<ul class="acceptance">
+  <li>用户在主界面能找到并打开 Character 库侧折抽屉，且与现有历史抽屉互不影响</li>
+  <li>用户能在抽屉内点击「新建角色」卡，进入创建流程</li>
+  <li>用户能上传一张本地图、填 Name、可选填 Instructions，提交后角色立即出现在列表里</li>
+  <li>Name 未填时无法创建，且给出明确错误提示</li>
+  <li>Name 与已有角色重名时无法创建，且给出明确错误提示</li>
+  <li>卡片默认显示图 + Name；点击能原地内联展开看到完整 Instructions，再次点击折叠</li>
+  <li>展开状态的卡片里能触发删除，且必须二次确认才真正删除</li>
+  <li>删除后角色立即从列表消失</li>
+  <li>列表默认按创建时间倒序排列</li>
+  <li>刷新页面、重启浏览器后角色与参考图均仍然存在</li>
+  <li>清缓存 / 换浏览器 / 换设备后看不到先前角色（与现有历史一致，符合预期）</li>
+  <li>本轮 cycle 不修改现有 prompt 生成流的任何 UI 与 API；现有生成功能行为不变</li>
+</ul>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'default' });
+</script>
+
+</body>
+</html>
