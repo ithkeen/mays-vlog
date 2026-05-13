@@ -1,0 +1,185 @@
+/*
+ * CharacterCard 局部样式。
+ *
+ * 视觉契约：minimal-refined / 浅色 / 冷色系 / 单一冷蓝 accent / 无衬线。
+ * 所有颜色 / 字号 / 间距 / radius / shadow / motion 走 :root tokens（见 src/index.css）。
+ *
+ * 与 NewCharacterCard 协同：主视觉区强制 1:1，让网格里默认态卡片对齐；展开时
+ * 卡片向下生长，由网格自然容纳。
+ */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition:
+    border-color var(--motion-fast) var(--easing-standard),
+    box-shadow var(--motion-fast) var(--easing-standard);
+}
+
+.card:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 卡片头部：图 + Name，整个区域是单个按钮，控制展开/折叠。 */
+.head {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.imageBox {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: var(--color-surface-muted);
+  overflow: hidden;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  transition: transform var(--motion-base) var(--easing-standard);
+}
+
+.head:hover .image {
+  transform: scale(1.02);
+}
+
+.name {
+  display: block;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text);
+  letter-spacing: -0.005em;
+  line-height: var(--line-height-tight);
+  word-break: break-word;
+  background: var(--color-surface);
+}
+
+/* 展开态：Instructions 段 + 操作行；在 name 之下，与 head 共享 card 边框。 */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.instructionsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.instructionsLabel {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+.instructionsText {
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.instructionsEmpty {
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-faint);
+  font-style: italic;
+}
+
+/* 操作行：单按钮「删除」or 双按钮「取消 | 确认删除」并排。 */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+/* 默认态：危险底色描边按钮（与 HistoryDetail 的 btnDanger 同一规格）。 */
+.btnDanger {
+  appearance: none;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-danger);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--easing-standard),
+    border-color var(--motion-fast) var(--easing-standard);
+}
+
+.btnDanger:hover {
+  background: var(--color-danger-soft);
+  border-color: var(--color-danger);
+}
+
+/* 确认态：取消（ghost） */
+.btnGhost {
+  appearance: none;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--easing-standard),
+    color var(--motion-fast) var(--easing-standard);
+}
+
+.btnGhost:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+/* 确认态：确认删除（filled danger） */
+.btnDangerSolid {
+  appearance: none;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-surface);
+  cursor: pointer;
+  transition: opacity var(--motion-fast) var(--easing-standard);
+}
+
+.btnDangerSolid:hover {
+  opacity: 0.88;
+}
