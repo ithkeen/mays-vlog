@@ -108,7 +108,7 @@ graph TD
 - **IDB 数据库名沿用 `video-mvp` 不改名**：项目名可演化，但 DB 名一旦改动会让浏览器把现有数据库视为孤儿、丢历史；改名等价于"清库重来"，无升级路径。
 - **Character 参考图存 Blob 不存 base64**：IDB 原生支持 Blob，无 ~33% 序列化膨胀；渲染走 `URL.createObjectURL` 在组件本身 `useEffect` cleanup 中 `revokeObjectURL`，不在容器层维护 URL 引用表（避免双 revoke 与所有权混乱）。
 - **唯一性约束 IDB 索引 + 应用层预查重双保险**：`characters.by_name_key` 索引 `unique: true` 作为兜底；`createCharacter` 先在 readwrite 事务内查重后写入，事务级别保证并发原子性。
-- **History / Characters 改走 react-router 一级路由 + Sidebar keep-mounted**：上一 cycle 的 `HistoryDrawer` 左列 + `CharacterDrawer` 浮层模型在 frontend-redesign cycle 整体废弃；现状是 AppShell 两列 grid（窄态 Sidebar + 主区），三个一级 page 同时常驻挂载，URL 决定哪个可见。详情页 `/history/:id` 走独立 Route 正常 mount/unmount。
+- **History / Characters 改走 react-router 一级路由 + Sidebar keep-mounted**：上一 cycle 的左列 history 抽屉 + character 浮层模型整体废弃；现状是 AppShell 两列 grid（窄态 Sidebar + 主区），三个一级 page 同时常驻挂载，URL 决定哪个可见。详情页 `/history/:id` 走独立 Route 正常 mount/unmount。
 - **创建表单走"路由切到 /characters/new" + 删除二次确认走"卡内内联变态"**：贴合"不弹 modal、不跳页（指不跳出本 SPA）"的视觉契约；`/characters/new` 在 CharactersPage 自身内部 grid 下方渲染 formPanel；删除二次确认在 CharacterCard 本体内自管，父级不感知细节。
 
 ## 已知限制 / 坑

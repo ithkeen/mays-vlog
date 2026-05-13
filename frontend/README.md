@@ -17,7 +17,7 @@
 - T9：后端 API client + 轮询 hook（已完成，见 `src/api/`）
 - T10：IndexedDB history store（含首帧图 base64）（已完成，见 `src/storage/`）
 - T11：主界面（输入 / 提交 / 生成中 / 失败 / 成功 → 视频播放）（已完成，见 `src/components/`）
-- T12：历史菜单（列表 / 播放 / 下载 / 重命名 / 删除）（**本 task 已完成**，见 `src/components/HistoryDrawer.tsx` 与 `HistoryDetail.tsx`）
+- T12：历史菜单（列表 / 播放 / 下载 / 重命名 / 删除）（**本 task 已完成**，见 `src/components/history/HistoryDetail.tsx`）
 
 ## 技术栈
 
@@ -50,7 +50,8 @@ frontend/
     │   ├── AppShell/       # 外壳：Sidebar + PageHeader + keep-mounted 页面 wrapper
     │   ├── SubmissionWorkspace.tsx (沿用)
     │   ├── PromptInput.tsx / ProgressPanel.tsx / VideoPlayer.tsx (沿用)
-    │   └── ...             # HistoryDrawer / CharacterDrawer / HistoryDetail 在本 cycle 后续 task 中会被平提到 components/history/ 与 components/character/ 后删除
+    │   ├── history/        # History 模块展示组件（HistoryCard / HistoryDetail）
+    │   └── character/      # Character 卡片三件套（CharacterCard / NewCharacterCard / CharacterCreateForm）
     ├── pages/              # 一级页面：GeneratePage / HistoryPage / HistoryDetailPage / CharactersPage
     └── storage/            # IndexedDB 持久化，见该目录 README
 ```
