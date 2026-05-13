@@ -12,8 +12,8 @@
 |---|---|
 | `AppShell.tsx` | 外壳主体。内部：`<Sidebar/>` + `<main>`；主区内常驻三个 page wrapper 并按一级路径切可见性；`<Routes>` 负责 `/` 与 `*` 重定向以及 `/history/:id` 详情页挂载 |
 | `AppShell.module.css` | 两列 grid、非活动 wrapper 的 pointer-events |
-| `Sidebar.tsx` | 占位窄态侧栏：三个 `NavLink`（Generate / History / Characters）；完整视觉样式由后续 task 实现 |
-| `Sidebar.module.css` | Sidebar 占位样式 |
+| `Sidebar.tsx` | 常驻窄态侧栏（72px）：顶部 logo + 应用名；三个 `NavLink`（Generate / History / Characters），icon 来自 `lucide-react`，icon 与 label 竖向堆叠 |
+| `Sidebar.module.css` | Sidebar 样式：选中态加深 + 左侧 2px 冷蓝竖线（`var(--color-accent)`） |
 | `PageHeader.tsx` | 主区顶部 header：左侧 `title` 槽位 + 右侧当前留空 |
 | `PageHeader.module.css` | Header 样式 |
 
@@ -31,5 +31,5 @@
 
 ## 设计边界
 
-- Sidebar 目前只跑通路由高亮（`NavLink` 自带 `aria-current="page"`），不做 logo / icon / 宽度收束；这些由本 cycle 的 T2 task 交付。
+- Sidebar 永久窄态（72px），无折叠 / 展开切换；图标使用 `lucide-react`（`Sparkles` / `Clock` / `Users`）。底部当前留空，后续若加用户区或设置入口再扩展。
 - PageHeader 右侧槽位保留为空 div，后续 task 如需面包屑、操作按钮可由各 page 在 header 上方或下方自行渲染；本组件不做 slot prop（等真正有第二处使用再抽）。
