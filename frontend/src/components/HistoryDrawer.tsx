@@ -32,6 +32,11 @@ export type HistoryDrawerProps = {
    * - 也可用于其他需要"以后端为权威"重新对齐的场景。
    */
   refreshTick: number;
+  /**
+   * 用户在抽屉头部点关闭按钮（T6 引入）。父级把抽屉单值状态切到 'none'，
+   * 配合 App 层的 grid 列宽塌缩实现「关闭」语义。
+   */
+  onClose: () => void;
 };
 
 const MAX_TITLE_CHARS = 40;
@@ -66,6 +71,7 @@ export function HistoryDrawer({
   selectedId,
   onSelect,
   refreshTick,
+  onClose,
 }: HistoryDrawerProps) {
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -127,9 +133,19 @@ export function HistoryDrawer({
     <aside className={styles.drawer} aria-label="历史">
       <div className={styles.header}>
         <span className={styles.title}>历史</span>
-        <span className={styles.badge}>
-          {items.length === 0 ? 'EMPTY' : String(items.length)}
-        </span>
+        <div className={styles.headerRight}>
+          <span className={styles.badge}>
+            {items.length === 0 ? 'EMPTY' : String(items.length)}
+          </span>
+          <button
+            type="button"
+            className={styles.closeBtn}
+            onClick={onClose}
+            aria-label="关闭历史抽屉"
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       {syncError !== null && (

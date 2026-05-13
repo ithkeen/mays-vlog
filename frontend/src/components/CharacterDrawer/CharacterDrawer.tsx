@@ -147,11 +147,21 @@ export function CharacterDrawer({ open, onClose }: CharacterDrawerProps) {
             {view === 'list' ? '角色库' : '新建角色'}
           </span>
         </div>
-        {view === 'list' && (
-          <span className={styles.badge}>
-            {characters.length === 0 ? 'EMPTY' : String(characters.length)}
-          </span>
-        )}
+        <div className={styles.headerRight}>
+          {view === 'list' && (
+            <span className={styles.badge}>
+              {characters.length === 0 ? 'EMPTY' : String(characters.length)}
+            </span>
+          )}
+          <button
+            type="button"
+            className={styles.closeBtn}
+            onClick={onClose}
+            aria-label="关闭角色库抽屉"
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       <div className={styles.body}>

@@ -12,9 +12,9 @@ UI 组件层。所有组件用 CSS Modules（`*.module.css`），颜色 / 间距
 | `ProgressPanel.tsx` / `.module.css` | 「生成中」spinner 条幅 / 失败提示条幅（含 409 in-flight 文案） |
 | `VideoPlayer.tsx` / `.module.css` | success 终态的 `<video controls>` + 「再生成一个」入口 |
 | `SubmissionWorkspace.tsx` / `.module.css` | 编排上面 3 个组件 + `useSubmitTask`，覆盖完整的 idle/submitting/running/success/failure 生命周期 |
-| `HistoryDrawer.tsx` / `.module.css` | 左侧历史菜单（T12 真实实现）：列表 / 选中态 / 相对时间 / IMG 标记 |
+| `HistoryDrawer.tsx` / `.module.css` | 左侧历史菜单（T12 真实实现）：列表 / 选中态 / 相对时间 / IMG 标记 / 关闭按钮（T6 引入） |
 | `HistoryDetail.tsx` / `.module.css` | 右侧历史详情（T12）：prompt 全文 + 视频 + 首帧图 + 下载 / 重命名 / 删除 |
-| `CharacterDrawer/` | Character 库抽屉子组件目录；与 HistoryDrawer 同侧互斥，独立子目录便于隔离演化。详见 [`CharacterDrawer/README.md`](CharacterDrawer/README.md) |
+| `CharacterDrawer/` | Character 库抽屉子组件目录；与 HistoryDrawer 同侧互斥（T6 接入），独立子目录便于隔离演化。详见 [`CharacterDrawer/README.md`](CharacterDrawer/README.md) |
 
 ## 主工作区两态切换
 
@@ -24,6 +24,29 @@ UI 组件层。所有组件用 CSS Modules（`*.module.css`），颜色 / 间距
 - `selectedId !== null` → 右侧渲染 `<HistoryDetail itemId={selectedId} />`（历史详情，T12）
 
 切换由 `<HistoryDrawer onSelect={...}>` 的列表点击触发；`<HistoryDetail>` 内部删除成功后调 `onDeleted` 让父级把 `selectedId` 复位为 `null`。
+
+## 抽屉互斥模型（T6）
+
+`App.tsx` 另持有 `openDrawer: 'none' | 'history' | 'characters'` 单值状态，统一调度两个抽屉：
+
+| 取值 | 视觉行为 |
+|---|---|
+| `'history'`（默认） | 左侧 grid 列展开至 `var(--sidebar-width)` 显示 `<HistoryDrawer>`；`<CharacterDrawer>` `open=false`，浮层退出至 `translateX(-100%)` |
+| `'characters'` | 左侧 grid 列同帧塌成 `0` 宽且 `aria-hidden="true"`、`pointer-events:none`；`<CharacterDrawer>` `open=true`，浮入显示 |
+| `'none'` | 两者都关；主内容区铺满 |
+
+入口按钮放在主区 header 右上的 `headerActions`，是「历史 / 角色库」两枚等规格的描边按钮：
+
+- 同名按钮再次点击 → 关闭自己（`openDrawer='none'`）
+- 点击对方按钮 → 切到对方一态，自然把自己关掉，确保同帧只有一个抽屉可见
+- 激活态按钮用 `--color-accent-soft` 背景 + `--color-accent` 文字 + `--color-border-strong` 边表达；非激活态用 `--color-surface` + `--color-text-muted`，hover 用 `--color-surface-muted`
+- 按钮内嵌 inline SVG 图标（历史 = 时钟，角色库 = 人头剪影）+ 中文标签，宽度自适应
+
+每个抽屉自己也提供关闭入口（HistoryDrawer 头部 `×` / CharacterDrawer 头部 `×`），点击直接调 `setOpenDrawer('none')`。CharacterDrawer 仍保留 ESC 关闭监听（T5 行为，不回归）。
+
+默认 `'history'` 而非 `'none'`：与 T6 之前 HistoryDrawer 常驻可见的口径一致，不让既有用户感知到「左栏不见了」的回归。
+
+`HistoryDrawer` 新增的 `onClose: () => void` props 由 `App.tsx` 注入；`CharacterDrawer` 的 `open` / `onClose` 已在 T5 设计好（受控协议），T6 只是把它接到 App 层而已。
 
 ## `PromptInput`
 
@@ -92,6 +115,7 @@ type HistoryDrawerProps = {
   selectedId: string | null;          // App 当前选中的历史 id；用于高亮当前项
   onSelect: (id: string) => void;     // 列表项点击回调（App 据此切换右侧到 HistoryDetail）
   refreshTick: number;                // 父级递增后强制重做「listTasks → mergeFromBackend → getAll」
+  onClose: () => void;                // 头部 × 按钮点击；App 据此把 openDrawer 切到 'none'（T6）
 };
 ```
 
