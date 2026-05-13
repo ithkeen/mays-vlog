@@ -14,6 +14,7 @@ UI 组件层。所有组件用 CSS Modules（`*.module.css`），颜色 / 间距
 | `SubmissionWorkspace.tsx` / `.module.css` | 编排上面 3 个组件 + `useSubmitTask`，覆盖完整的 idle/submitting/running/success/failure 生命周期 |
 | `HistoryDrawer.tsx` / `.module.css` | 左侧历史菜单（T12 真实实现）：列表 / 选中态 / 相对时间 / IMG 标记 |
 | `HistoryDetail.tsx` / `.module.css` | 右侧历史详情（T12）：prompt 全文 + 视频 + 首帧图 + 下载 / 重命名 / 删除 |
+| `CharacterDrawer/` | Character 库抽屉子组件目录；与 HistoryDrawer 同侧互斥，独立子目录便于隔离演化。详见 [`CharacterDrawer/README.md`](CharacterDrawer/README.md) |
 
 ## 主工作区两态切换
 
