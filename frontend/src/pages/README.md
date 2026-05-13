@@ -9,7 +9,7 @@
 | `GeneratePage.tsx` | `/generate` | 是 | 默认入口。`<PageHeader title="Generate">` + `<SubmissionWorkspace>`；用 `resetKey` state 自增触发 remount 实现「再生成一个」 |
 | `HistoryPage.tsx` | `/history` | 是 | 历史网格列表。后续 task 接入 `useHistoryList` + `HistoryCard` |
 | `HistoryDetailPage.tsx` | `/history/:id` | 否 | 独立详情页，随 URL mount/unmount |
-| `CharactersPage.tsx` | `/characters`、`/characters/new` | 是 | 列表 + 创建表单态共用；由 pathname 切换 |
+| `CharactersPage.tsx` | `/characters`、`/characters/new` | 是 | grid 卡片列表（首位 `NewCharacterCard` + 真实角色卡）；`/characters/new` 时在 grid 下方渲染 `CharacterCreateForm` 面板，提交成功 / 取消都 navigate 回 `/characters` |
 
 ## 进度可见性约束
 
@@ -17,4 +17,4 @@
 
 ## 待集成
 
-`HistoryPage` / `HistoryDetailPage` / `CharactersPage` 当前仅 `<PageHeader>` 占位，实际内容由后续 task 填充。
+`HistoryPage` / `HistoryDetailPage` 当前仅 `<PageHeader>` 占位，实际内容由后续 task 填充。`CharactersPage` 已完整接入。
