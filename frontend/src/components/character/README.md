@@ -1,6 +1,6 @@
 # components/character/
 
-Characters 页 grid 卡片三件套（从原 `components/CharacterDrawer/` 平提）。
+Characters 页 grid 卡片三件套。
 
 ## 组件清单
 
@@ -24,7 +24,7 @@ type CharacterCardProps = {
 grid 首位的「新建角色」占位卡。
 - 浅色 `surface-muted` 背景 + 虚线边框 + `+` icon + `New Character` / `Create your own` 双行文案。
 - 自身 `aspect-ratio: 1 / 1`，与 `CharacterCard` 默认态尺寸一致。
-- 点击直接 `navigate('/characters/new')`，不再依赖外部 `openDrawer` 状态。
+- 点击直接 `navigate('/characters/new')`。
 
 Props：无（自包含 `useNavigate`）。
 

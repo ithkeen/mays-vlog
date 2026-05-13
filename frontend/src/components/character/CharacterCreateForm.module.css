@@ -4,9 +4,9 @@
  * 视觉契约：minimal-refined / 浅色 / 冷色系 / 单一冷蓝 accent / 无衬线。
  * 所有颜色 / 间距 / 字号 / radius / motion 走 :root tokens（见 src/index.css）。
  *
- * 表单整体走「无外卡片」直接铺在抽屉内的克制路线（抽屉本身就是 surface），
- * 字段之间用 space-4 间隔；预览块与上传入口风格延续 PromptInput 同款，确保
- * 全站表单观感一致。
+ * 表单整体走「无外卡片」直接铺在 CharactersPage 的 formPanel 内的克制路线
+ * （formPanel 自身就是 surface），字段之间用 space-4 间隔；预览块与上传入口
+ * 风格延续 PromptInput 同款，确保全站表单观感一致。
  */
 
 .form {

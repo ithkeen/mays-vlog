@@ -6,8 +6,7 @@ import styles from './NewCharacterCard.module.css'
  *
  * - 与角色卡同尺寸（方形主视觉），但用浅色面板 + 居中 `+` icon + 双行文案
  *   表达「这是入口，不是内容」。
- * - 点击直接 `navigate('/characters/new')`，URL 切到创建表单态；
- *   不再依赖原 CharacterDrawer 的 `openDrawer` 状态。
+ * - 点击直接 `navigate('/characters/new')`，URL 切到创建表单态。
  */
 export function NewCharacterCard() {
   const navigate = useNavigate()

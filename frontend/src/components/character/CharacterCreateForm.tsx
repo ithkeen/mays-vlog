@@ -28,7 +28,7 @@ import styles from './CharacterCreateForm.module.css'
  *   避免内存泄漏。
  * - 提交前再做一次 MIME 二次校验：`<input accept="...">` 在不同浏览器下并非强校验，
  *   用户拖入或选「显示所有文件」时可能漏掉，故在 `handleSubmit` 入口再判一次。
- * - 本组件不切抽屉态：成功时调 `onCreated(character)`，父组件决定是否回列表态；
+ * - 本组件不切页面态：成功时调 `onCreated(character)`，父组件决定下一步导航；
  *   `onCancel` 同理。组件内部仅负责把自己的状态重置干净。
  */
 

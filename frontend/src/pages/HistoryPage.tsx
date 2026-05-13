@@ -13,7 +13,7 @@ import styles from './HistoryPage.module.css';
 /**
  * HistoryPage——`/history` 路由页面。
  *
- * 数据源（与原 HistoryDrawer 同源策略，但承载在 grid 列表上）：
+ * 数据源（后端为权威，本地 IDB 为缓存）：
  * - mount 时：`listTasks()` → `mergeFromBackend()` → `getAll()`，以后端为权威
  * - 5 秒轻量本地 `getAll()`：让 SubmissionWorkspace 直接写入 IDB 的新条目自动出现
  * - 后端不可达时降级：仅展示本地缓存 + 顶部红条提示同步失败原因

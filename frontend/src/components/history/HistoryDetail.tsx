@@ -39,7 +39,7 @@ export type HistoryDetailProps = {
   itemId: string;
   /** 删除完成后通知父级（id 用于父级日志/分析；当前父级仅用作 trigger）。 */
   onDeleted: (id: string) => void;
-  /** 重命名成功后通知父级（让左侧抽屉重新 merge 后端列表）。 */
+  /** 重命名成功后通知父级（让 HistoryDetailPage 更新面包屑标题）。 */
   onRenamed: (id: string, newTitle: string) => void;
 };
 

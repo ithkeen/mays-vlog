@@ -168,7 +168,7 @@ await remove(c.id)
 - `characters`：当前内存列表，已按 `createdAt` DESC 排序
 - `isLoading`：仅在 `refresh` 进行中为 `true`；`create` / `remove` 不切此标志（视调用方需要在 UI 层自己加局部 loading）
 - `error`：`refresh` 过程的错误；`create` / `remove` 的错误**直接抛出**，不写入 `error` 字段，便于调用方按错误种类分支响应
-- 与 history 现有惯例对齐：history 的消费组件（`HistoryDrawer`）直接在组件内用 `useState + useEffect` 管列表 + merge，因为它要做「以后端为权威源的三分支合并」；Character 库**没有跨设备权威源**，本地即权威，把数据 + 操作收敛进单个 hook 更紧凑——避免在抽屉组件里散落同样模板的 try/catch + setState。故选择「合入 `charactersDb.ts`」而非新建独立 hook 文件
+- 与 history 现有惯例对齐：history 的消费组件（`HistoryPage`）直接在组件内用 `useState + useEffect` 管列表 + merge，因为它要做「以后端为权威源的三分支合并」；Character 库**没有跨设备权威源**，本地即权威，把数据 + 操作收敛进单个 hook 更紧凑——避免在消费组件里散落同样模板的 try/catch + setState。故选择「合入 `charactersDb.ts`」而非新建独立 hook 文件
 
 ## 依赖
 

@@ -134,9 +134,9 @@ export async function deleteCharacter(id: string): Promise<void> {
  * - `remove`：调 `deleteCharacter`，成功后从内存列表过滤掉对应 id
  * - `refresh`：强制重读 IDB 全量；用于外部数据变化（暂未使用，但作为对外契约保留）
  *
- * 与 history 现有惯例（`HistoryDrawer` 直接在组件里 `useState + useEffect`）相比，
- * Character 库没有「跨设备权威源」需要 merge，本地即权威；把数据 + 操作收敛进单个
- * hook 更紧凑，避免抽屉组件里散落重复的 try/catch + setState 模板。
+ * 与 history 现有惯例（`HistoryPage` 直接在组件里 `useState + useEffect` + mergeFromBackend）
+ * 相比，Character 库没有「跨设备权威源」需要 merge，本地即权威；把数据 + 操作收敛进单个
+ * hook 更紧凑，避免消费组件里散落重复的 try/catch + setState 模板。
  */
 export function useCharacters(): {
   characters: Character[]
