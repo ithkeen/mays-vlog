@@ -42,25 +42,17 @@ frontend/
 ├── public/                 # 静态资源（当前为空，后续 task 按需放）
 └── src/
     ├── main.tsx            # React 入口
-    ├── App.tsx             # 应用根：双栏布局；右侧按 selectedId 在 SubmissionWorkspace ↔ HistoryDetail 间切换
-    ├── App.module.css      # App 局部样式（CSS Modules）
+    ├── App.tsx             # 应用根：BrowserRouter + AppShell
     ├── index.css           # 全局 reset + 设计 tokens（:root CSS variables）
     ├── vite-env.d.ts       # Vite + CSS Modules 类型声明
-    ├── api/                # 后端 HTTP 客户端 + React 数据 hook（T9），见该目录 README
-    │   ├── client.ts
-    │   ├── hooks.ts
-    │   └── README.md
-    ├── components/         # UI 组件层（T11 + T12），见该目录 README
-    │   ├── PromptInput.tsx / .module.css         (T11)
-    │   ├── ProgressPanel.tsx / .module.css       (T11)
-    │   ├── VideoPlayer.tsx / .module.css         (T11)
-    │   ├── SubmissionWorkspace.tsx / .module.css (T11)
-    │   ├── HistoryDrawer.tsx / .module.css       (T12 历史列表)
-    │   ├── HistoryDetail.tsx / .module.css       (T12 历史详情)
-    │   └── README.md
-    └── storage/            # IndexedDB 历史缓存（T10），见该目录 README
-        ├── historyDb.ts
-        └── README.md
+    ├── api/                # 后端 HTTP 客户端 + React 数据 hook，见该目录 README
+    ├── components/
+    │   ├── AppShell/       # 外壳：Sidebar + PageHeader + keep-mounted 页面 wrapper
+    │   ├── SubmissionWorkspace.tsx (沿用)
+    │   ├── PromptInput.tsx / ProgressPanel.tsx / VideoPlayer.tsx (沿用)
+    │   └── ...             # HistoryDrawer / CharacterDrawer / HistoryDetail 在本 cycle 后续 task 中会被平提到 components/history/ 与 components/character/ 后删除
+    ├── pages/              # 一级页面：GeneratePage / HistoryPage / HistoryDetailPage / CharactersPage
+    └── storage/            # IndexedDB 持久化，见该目录 README
 ```
 
 ## 命令
@@ -138,18 +130,25 @@ server: {
 
 **布局**：`--sidebar-width`
 
-## 双栏布局与主区两态切换
+## 应用外壳与路由
 
-`App.tsx`：
+`App.tsx` 仅承担 `<BrowserRouter>` 包裹，实际外壳由 `src/components/AppShell/AppShell.tsx` 负责：两列 grid = 左侧 `Sidebar`（窄态导航）+ 右侧主区。
 
-- 左：`<HistoryDrawer>` 历史列表（T12），固定宽 `--sidebar-width`（280px）。
-- 右：`<main>` 主工作区，按父级 `selectedId` 状态二选一：
-  - `selectedId === null` → `<SubmissionWorkspace>`（输入 / 提交 / 生成中 / 成功视频，T11）
-  - `selectedId !== null` → `<HistoryDetail itemId={selectedId}>`（prompt 全文 / 视频 / 首帧图 / 下载 / 重命名 / 删除，T12）
+主区内常驻渲染三个一级页面（`GeneratePage` / `HistoryPage` / `CharactersPage`），根据当前 `location.pathname` 的一级段用 `display: block/none` 切换可见性，非活动页同时 `aria-hidden="true" + tabIndex=-1 + pointer-events:none`；由此保留 Generate 页内部轮询状态。`HistoryDetailPage` 通过 `/history/:id` 路由正常 mount/unmount。
 
-切换由抽屉列表点击触发；`HistoryDetail` 删除成功后通过 `onDeleted` 让父级清空 `selectedId` 切回输入页。父级 `refreshTick` 状态用于在 rename / delete / 新生成成功后强制抽屉再做一次 `listTasks → mergeFromBackend`，以后端为权威。
+路由表（react-router-dom v6）：
 
-「再生成一个」通过给 `SubmissionWorkspace` 自增 `key` 实现 remount-reset，不在 hook 层加专用 reset 方法。
+| path | 渲染 | 说明 |
+|---|---|---|
+| `/` | — | 重定向 `/generate` |
+| `/generate` | GeneratePage（keep-mounted） | 默认入口 |
+| `/history` | HistoryPage（keep-mounted） | 列表 |
+| `/history/:id` | HistoryDetailPage | 独立详情，非 keep-mounted |
+| `/characters` | CharactersPage（keep-mounted） | 列表 |
+| `/characters/new` | CharactersPage（keep-mounted） | 同一 page，由 pathname 决定创建表单态 |
+| `*` | — | 重定向 `/generate` |
+
+> T1 阶段 4 个 page 仅渲染 `PageHeader` 占位；完整内容由后续 task（T2 Sidebar 视觉 / T3 GeneratePage 集成 SubmissionWorkspace / T4 HistoryPage grid / …）补齐。
 
 ## 不持有凭据
 

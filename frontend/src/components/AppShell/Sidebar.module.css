@@ -1,0 +1,29 @@
+.sidebar {
+  border-right: 1px solid var(--color-border, #e4e6ea);
+  background: var(--color-surface-elevated, #ffffff);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 0;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item {
+  display: block;
+  padding: 10px 8px;
+  font-size: 11px;
+  text-align: center;
+  color: var(--color-text-muted, #6b7280);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+}
+
+.itemActive {
+  color: var(--color-text, #111827);
+  border-left-color: var(--color-accent, #1d4ed8);
+  font-weight: 600;
+}

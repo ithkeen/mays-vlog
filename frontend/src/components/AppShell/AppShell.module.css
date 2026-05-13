@@ -1,0 +1,19 @@
+.shell {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  min-height: 100vh;
+  background: var(--color-surface, #f5f6f8);
+}
+
+.main {
+  position: relative;
+  min-width: 0;
+}
+
+/**
+ * keep-mounted 非活动页：display:none + aria-hidden + pointer-events 两件套，
+ * 兼容 React 18，避免 Tab 落入隐藏子树。
+ */
+.pageWrapper[aria-hidden='true'] {
+  pointer-events: none;
+}
